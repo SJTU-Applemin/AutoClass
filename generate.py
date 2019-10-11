@@ -6,7 +6,9 @@ class ClassContent(object):
         self.TestName = ''
         self.inputPara = []
         self.outputPara = []
+        self.inputName = []
         self.inputType = []
+        self.inputValue = []
         self.outputType = []
         self.filename = ''
         self.file_header = os.getcwd() + '\\' + 'sample_header.txt'
@@ -32,6 +34,16 @@ class ClassContent(object):
         self.addBody()
         self.addHeaders()
         self.writefile()
+        
+    def generateInput(self):
+        lines = []
+        lines.append('<Header>\n')
+        for index in range(len(self.inputName)):
+            lines.append(self.inputName[index] + ' = ' + self.inputValue[index] + '\n')
+        file = self.filepath + '\\' + self.TestName + 'Input.dat'
+        with open(file,'w') as fout:
+            fout.writelines(lines)
+
 
 
 
@@ -105,7 +117,8 @@ class ClassContent(object):
                     value = 'nullptr'
                 else:
                     value = self.getParaValue(self.inputType[i], input)
-                para = input.split(' ')[-1].strip('*').strip('&')
+                para = input.split('=')[0]
+                para = para.split(' ')[1].strip('*').strip('&')
 
 
 
