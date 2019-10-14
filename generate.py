@@ -20,6 +20,9 @@ class ClassContent(object):
     def clear(self):
         self.TestName = ''
         self.inputPara = []
+        self.inputName = []
+        self.inputType = []
+        self.inputValue = []
         self.outputPara = []
         self.lines = []
         #self.filename = ''
@@ -39,7 +42,10 @@ class ClassContent(object):
         lines = []
         lines.append('<Header>\n')
         for index in range(len(self.inputName)):
-            lines.append(self.inputName[index] + ' = ' + self.inputValue[index] + '\n')
+            if self.inputValue[index]:
+                lines.append(self.inputName[index] + ' = ' + self.inputValue[index] + '\n')
+            else:
+                lines.append(self.inputName[index] + ' = None\n')
         file = self.filepath + '\\' + self.TestName + 'Input.dat'
         with open(file,'w') as fout:
             fout.writelines(lines)
@@ -117,11 +123,7 @@ class ClassContent(object):
                     value = 'nullptr'
                 else:
                     value = self.getParaValue(self.inputType[i], input)
-                para = input.split('=')[0]
-                para = para.split(' ')[1].strip('*').strip('&')
-
-
-
+                para = input.split(' ')[-1].strip('*').strip('&')
                 lines.append('    '*level + 'inputParameters.' + para + ' = '+ value)
                 lines.append('\n')
         if fName == 'output':

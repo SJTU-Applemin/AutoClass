@@ -92,26 +92,24 @@ class MainWindow(QMainWindow):
         self.Content.TestName=self.ui.lineEditTestName.text().strip() + 'TestData'
 
         inputPara = self.ui.lineEditInputPara.text().strip()
-        inputPara = inputPara.split(',')
+        inputPara = inputPara.split(',')    # if string contains ',' may cause error
         for input in inputPara:
-            input = input.strip(' ')
-            if not input:
+            if not input.strip():
                 continue
-            self.Content.inputPara.append(input)
-            input = self.skipDescripter(input)
-            input = self.skipQualifier(input)
-            
-            if input.find('=') >= 0:
-                value = input[input.find('=')+1:]
-                input = input[:input.find('=')]
+            input = input.split('=')    # if string contains '=', may cause error
+            if len(input) == 2:
+                value = input[1].strip()
             else:
                 value = None
             self.Content.inputValue.append(value)
-
+            input = input[0].strip()
+            self.Content.inputPara.append(input)
+            input = self.skipDescripter(input)
+            input = self.skipQualifier(input)
             format = input.split(' ')[0].strip('*').strip('&')
             self.Content.inputType.append(self.parseType(format))
 
-            name = input.split(' ')[1].strip('*').strip('&')
+            name = input.split(' ')[-1].strip('*').strip('&')
             self.Content.inputName.append(name)
             #if format in self.int_type:
             #    self.Content.inputType.append('int_type')
