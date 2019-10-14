@@ -137,6 +137,20 @@ class ClassContent(object):
                 lines.append('\n')
         return lines
 
+    def generateReference(self):
+        lines = []
+        lines.append('<Header>\n')
+        for i, output in enumerate(self.outputPara):
+                if '*' in output:
+                    value = 'nullptr'
+                else:
+                    value =  self.getParaValue(self.outputType[i], output)
+                para = output.split(' ')[-1].strip('*').strip('&')
+                lines.append(para + ' = ' + value + '\n')
+        file = self.filepath + '\\' + self.TestName + 'Reference.dat'
+        with open(file,'w') as fout:
+            fout.writelines(lines)
+
     def getParaValue(self, type, aa):
         if type == 'int':
             return '2';

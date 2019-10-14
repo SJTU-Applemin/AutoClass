@@ -86,6 +86,7 @@ class MainWindow(QMainWindow):
             self.readInfoFromUi()
             self.Content.generate()
             self.Content.generateInput()
+            self.Content.generateReference()
 
     def readInfoFromUi(self):
 
