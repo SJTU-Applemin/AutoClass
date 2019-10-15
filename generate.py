@@ -6,7 +6,9 @@ class ClassContent(object):
         self.TestName = ''
         self.inputPara = []
         self.outputPara = []
+        self.inputName = []
         self.inputType = []
+        self.inputValue = []
         self.outputType = []
         self.filename = ''
         self.file_header = os.getcwd() + '\\' + 'sample_header.txt'
@@ -18,6 +20,9 @@ class ClassContent(object):
     def clear(self):
         self.TestName = ''
         self.inputPara = []
+        self.inputName = []
+        self.inputType = []
+        self.inputValue = []
         self.outputPara = []
         self.lines = []
         #self.filename = ''
@@ -32,6 +37,19 @@ class ClassContent(object):
         self.addBody()
         self.addHeaders()
         self.writefile()
+        
+    def generateInput(self):
+        lines = []
+        lines.append('<Header>\n')
+        for index in range(len(self.inputName)):
+            if self.inputValue[index]:
+                lines.append(self.inputName[index] + ' = ' + self.inputValue[index] + '\n')
+            else:
+                lines.append(self.inputName[index] + ' = None\n')
+        file = self.filepath + '\\' + self.TestName + 'Input.dat'
+        with open(file,'w') as fout:
+            fout.writelines(lines)
+
 
 
 
@@ -106,9 +124,6 @@ class ClassContent(object):
                 else:
                     value = self.getParaValue(self.inputType[i], input)
                 para = input.split(' ')[-1].strip('*').strip('&')
-
-
-
                 lines.append('    '*level + 'inputParameters.' + para + ' = '+ value)
                 lines.append('\n')
         if fName == 'output':
@@ -121,6 +136,20 @@ class ClassContent(object):
                 lines.append('    '*level + 'outputParameters.' + para + ' = ' + value)
                 lines.append('\n')
         return lines
+
+    def generateReference(self):
+        lines = []
+        lines.append('<Header>\n')
+        for i, output in enumerate(self.outputPara):
+                if '*' in output:
+                    value = 'nullptr'
+                else:
+                    value =  self.getParaValue(self.outputType[i], output)
+                para = output.split(' ')[-1].strip('*').strip('&')
+                lines.append(para + ' = ' + value + '\n')
+        file = self.filepath + '\\' + self.TestName + 'Reference.dat'
+        with open(file,'w') as fout:
+            fout.writelines(lines)
 
     def getParaValue(self, type, aa):
         if type == 'int':

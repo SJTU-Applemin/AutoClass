@@ -85,24 +85,33 @@ class MainWindow(QMainWindow):
             self.Content.clear()
             self.readInfoFromUi()
             self.Content.generate()
-
+            self.Content.generateInput()
+            self.Content.generateReference()
 
     def readInfoFromUi(self):
 
         self.Content.TestName=self.ui.lineEditTestName.text().strip() + 'TestData'
 
         inputPara = self.ui.lineEditInputPara.text().strip()
-        inputPara = inputPara.split(',')
+        inputPara = inputPara.split(',')    # if string contains ',' may cause error
         for input in inputPara:
-            input = input.strip(' ')
-            if not input:
+            if not input.strip():
                 continue
+            input = input.split('=')    # if string contains '=', may cause error
+            if len(input) == 2:
+                value = input[1].strip()
+            else:
+                value = None
+            self.Content.inputValue.append(value)
+            input = input[0].strip()
             self.Content.inputPara.append(input)
             input = self.skipDescripter(input)
             input = self.skipQualifier(input)
-            
             format = input.split(' ')[0].strip('*').strip('&')
             self.Content.inputType.append(self.parseType(format))
+
+            name = input.split(' ')[-1].strip('*').strip('&')
+            self.Content.inputName.append(name)
             #if format in self.int_type:
             #    self.Content.inputType.append('int_type')
             #elif format == 'bool':
@@ -180,10 +189,14 @@ class MainWindow(QMainWindow):
             #    input = input[len('restrict'):].strip()
             input = self.skipDescripter(input)
             input = self.skipQualifier(input)
+            if input.find('=') >= 0:
+                input = input[:input.find('=')]
+                # TODO: check value
+                value = input[input.find('='):]
             input = input.strip().split(' ')
             para = input[-1]
             if not self.isValidPara(para):
-                msgBox.setText("Please input valid Input Para!\n e.g. \" int num, char ch \"")
+                msgBox.setText("Please input valid Input Para!\n e.g. \" int num = 2, char ch = 'a' \"")
                 msgBox.exec_()
                 return False
         outputPara = self.ui.lineEditOutputPara.text().strip()
