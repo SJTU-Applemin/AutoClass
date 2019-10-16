@@ -1,5 +1,6 @@
 import sys
 import re
+import os
 from functools import partial
 
 from PySide2.QtCore import QCoreApplication, Slot, Qt, QRegExp
@@ -18,6 +19,9 @@ class MainWindow(QMainWindow):
         self.ui.setupUi(self)
 
         self.Content = ClassContent()
+        self.fileContents = []
+        self.classes = []
+        self.functions = {}
         self.typeDescriptor = ['signed', 'unsigned', 'short', 'long']
         self.descriptor = ['auto', 'register', 'static', 'extern', 'thread_local', 'mutable']
         self.qualifier = ['const', 'restrict', 'volatile']
@@ -36,10 +40,12 @@ class MainWindow(QMainWindow):
         self.ui.lineEditInputPara.textChanged.connect(partial(self.changebg,'InputPara'))
         self.ui.lineEditOutputPara.textChanged.connect(partial(self.changebg,'OutputPara'))
 
-
+        self.ui.comboBoxClass.currentTextChanged.connect(self.fillFunctionSelect)
+        self.ui.pushButtonSelectFile.clicked.connect(self.selectFilePath)
         self.ui.lineEditTestName.editingFinished.connect(self.checkTestName)
         self.ui.lineEditInputPara.editingFinished.connect(partial(self.fillLine,'InputPara'))
         self.ui.lineEditOutputPara.editingFinished.connect(partial(self.fillLine,'OutputPara'))
+        self.ui.lineEditFile.editingFinished.connect(self.readHFile)
 
     @Slot()
     def changebg(self,name,text):
@@ -49,6 +55,80 @@ class MainWindow(QMainWindow):
             self.ui.lineEditInputPara.setStyleSheet('QLineEdit {background-color: rgb(255, 255, 0);}')
         if name == 'OutputPara':
             self.ui.lineEditOutputPara.setStyleSheet('QLineEdit {background-color: rgb(255, 255, 0);}')
+
+    def clearComboboxSelect(self):
+        self.classes = []
+        self.functions = {}
+        self.ui.comboBoxClass.clear()
+        self.ui.comboBoxFunction.clear()
+
+    def fillClassSelect(self):
+        self.ui.comboBoxClass.clear()
+        for item in self.classes:
+            self.ui.comboBoxClass.addItem(item)
+
+    def fillFunctionSelect(self):
+        self.ui.comboBoxFunction.clear()
+        className = self.ui.comboBoxClass.currentText()
+        if not className:
+            return
+        for item in self.functions[className]:
+            self.ui.comboBoxFunction.addItem(item)
+
+    @Slot()
+    def selectFilePath(self):
+        fileName = QFileDialog.getOpenFileName(self, r'选择.h文件', filter='All files (*.h)')[0]
+        if not fileName:
+            return
+        self.ui.lineEditFile.setText(fileName)
+        self.readHFile()
+
+    def readHFile(self):
+        self.clearComboboxSelect()
+        fileName = self.ui.lineEditFile.text()
+        if not fileName.strip():
+            return
+        if not os.path.exists(fileName):
+            self.ui.lineEditFile.clear()
+            msgBox = QMessageBox()
+            msgBox.setWindowTitle('Error')
+            msgBox.setInformativeText('File does not exists!')
+            msgBox.exec_()
+            return
+        with open(fileName, 'r') as fd:
+            self.fileContents = fd.readlines()
+            className = None
+            for line in self.fileContents:
+                line = line.strip()
+
+                # Enter a new class
+                if line.startswith('class'):
+                    line = line[5:].strip()
+                    # class classA : classB
+                    if line.find(':') > 0:
+                        className = line[:line.find(':')].strip()
+                    # class classA {
+                    elif line.find('{') > 0:
+                        className = line[:line.find('{')].strip()
+                    # class classA
+                    else:
+                        className = line
+                    self.classes.append(className)
+                    self.functions[className] = []
+                    classBraceFound = line.count('{')
+                    continue
+                if className:
+                    # line starts with '{' or '}'
+                    classBraceFound += line.count('{')
+                    classBraceFound -= line.count('}')
+                    # var function()
+                    if line.find('(') >= 0:
+                        line = line[:line.find('(')].strip()
+                        functionName = line.split(' ')[-1]
+                        self.functions[className].append(functionName)
+                    if classBraceFound <= 0:
+                        className = None
+        self.fillClassSelect()
 
     @Slot()
     def fillLine(self, name, flag = True):
@@ -82,11 +162,17 @@ class MainWindow(QMainWindow):
             msgBox.setText("Please fill %s" % str)
             msgBox.exec_()
         else:
+            self.Content.className = self.ui.comboBoxClass.currentText()
+            self.Content.functionName = self.ui.comboBoxFunction.currentText()
             self.Content.clear()
             self.readInfoFromUi()
             self.Content.generate()
             self.Content.generateInput()
             self.Content.generateReference()
+            self.Content.generateClassNameFocusTestCpp()
+            self.Content.generateClassNameFocusTestH()
+            self.Content.generateClassNameTestH()
+            self.Content.generateClassNameTestCpp()
 
     def readInfoFromUi(self):
 
@@ -262,6 +348,8 @@ class MainWindow(QMainWindow):
     def checkTestName(self):
         # remove white space at start and end
         text = self.ui.lineEditTestName.text().strip()
+        if not text:
+            return
         # pure white space should not be detected as input
         #if not text:
         #    return
