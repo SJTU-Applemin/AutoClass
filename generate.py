@@ -16,6 +16,8 @@ class ClassContent(object):
         self.includes = ['vp_reder_sfc_base.h', 'pipeline.h']
         self.lines = []
         self.level = 0
+        self.className = ''
+        self.functionName = ''
 
     def clear(self):
         self.TestName = ''
@@ -29,7 +31,7 @@ class ClassContent(object):
 
     def generate(self):
 
-        self.filename = self.TestName + '.h'
+        self.filename = self.className + 'TestData.h'
         #self.add_file_header()
         #self.addHeaders()
         self.addIncludeH(self.includes)
@@ -46,7 +48,7 @@ class ClassContent(object):
                 lines.append(self.inputName[index] + ' = ' + self.inputValue[index] + '\n')
             else:
                 lines.append(self.inputName[index] + ' = None\n')
-        file = self.filepath + '\\' + self.TestName + 'Input.dat'
+        file = self.filepath + '\\' + self.className + self.functionName + self.TestName[:-8] + 'Input.dat'
         with open(file,'w') as fout:
             fout.writelines(lines)
 
@@ -71,7 +73,7 @@ class ClassContent(object):
 
     def addBody(self):
         self.lines.append('\n')
-        self.lines.append('class ' + self.TestName + ': public TestData' + '\n{\n')
+        self.lines.append('class ' + self.className + self.functionName + 'TestData: public TestData' + '\n{\n')
         self.lines.append('public:')
         self.lines.extend(self.addClass(self.level+1))
         self.lines.extend(self.addFunctions('input',self.level+1))
@@ -147,7 +149,7 @@ class ClassContent(object):
                     value =  self.getParaValue(self.outputType[i], output)
                 para = output.split(' ')[-1].strip('*').strip('&')
                 lines.append(para + ' = ' + value + '\n')
-        file = self.filepath + '\\' + self.TestName + 'Reference.dat'
+        file = self.filepath + '\\' + self.className + self.functionName + self.TestName[:-8] + 'Reference.dat'
         with open(file,'w') as fout:
             fout.writelines(lines)
 
@@ -191,7 +193,86 @@ class ClassContent(object):
         file = self.filepath + '\\' + self.filename
         with open(self.filepath + '\\' + self.filename,'w') as fout:
             fout.writelines(self.lines)
-                
+
+    def generateClassNameFocusTestCpp(self):
+        lines = []
+        lines.append('#include ' + self.className + self.functionName + 'TestData.h\n')
+        lines.append('#include ' + self.className + 'FocusTest.h\n')
+        lines.append('TEST_F(' + self.className + 'FocusTest, ' + self.className + 'Test_' + self.functionName + '_' + self.TestName[:-8] + ')\n')
+        lines.append('{\n')
+        lines.append('   EXPECT_EQ(m_testMember->' + self.functionName + 'Test(inputRcId, referenceRcId, testname), 0);\n')
+        lines.append('}\n')
+        file = self.filepath + '\\' + self.className + 'FocusTest.cpp'
+        with open(file,'w') as fout:
+            fout.writelines(lines)
+
+    def generateClassNameFocusTestH(self):
+        lines = []
+        lines.append('#ifndef __ENCODE_HEVC_VDENC_PIPELINE_G12_FT_H__\n')
+        lines.append('#define __ENCODE_HEVC_VDENC_PIPELINE_G12_FT_H__\n')
+        lines.append('#include "gtest/gtest.h"\n')
+        lines.append('#include "gmock/gmock.h"\n')
+        lines.append('#include ' + self.className + 'Test*.h\n')
+        lines.append('using namespace testing;\n')
+        lines.append('class ' + self.className + 'FT : public testing::Test\n')
+        lines.append('{\n')
+        lines.append('protected:\n')
+        lines.append('   //!\n')
+        lines.append('   //! \\brief   Initialization work before executing a unit test\n')
+        lines.append('   //!\n')
+        lines.append('   virtual void SetUp() \n')
+        lines.append('   {\n')
+        lines.append('      m_test = MOS_New(' + self.className + 'Test, nullptr, nullptr);\n')
+        lines.append('   }\n')
+        lines.append('\n')
+        lines.append('   //!\n')
+        lines.append('   //! \\brief   Uninitializaiton and exception handling after the unit test done\n')
+        lines.append('   //!\n')
+        lines.append('   virtual void TearDown()\n')
+        lines.append('   {\n')
+        lines.append('      MOS_Delete(m_test);\n')
+        lines.append('   }\n')
+        lines.append('   ' + self.className + 'Test* m_test = nullptr;\n')
+        lines.append('}\n')
+        file = self.filepath + '\\' + self.className + 'FocusTest.h'
+        with open(file,'w') as fout:
+            fout.writelines(lines)
+
+    def generateClassNameTestH(self):
+        lines = []
+        lines.append('#include ' + self.className +'.h\n')
+        lines.append('class ' + self.className +'Test : public ' + self.className +'\n')
+        lines.append('{\n')
+        lines.append('public:\n')
+        lines.append('   ' + self.className +'Test(){};\n')
+        lines.append('\n')
+        lines.append('   virtual ~' + self.className +'Test() {};\n')
+        lines.append('\n')
+        lines.append('   MOS_STATUS ' + self.functionName +'Test();\n')
+        lines.append('};\n')
+        lines.append('\n')
+        file = self.filepath + '\\' + self.className + 'Test.h'
+        with open(file,'w') as fout:
+            fout.writelines(lines)
+
+
+    def generateClassNameTestCpp(self):
+        lines = []
+        lines.append('#include ' + self.className + self.functionName + 'TestData.h\n')
+        lines.append('\n')
+        lines.append('MOS_STATUS ' + self.className + 'Test::' + self.functionName + 'Test()\n')
+        lines.append('{\n')
+        lines.append('   ' + self.className + self.functionName + 'TestData testData;\n')
+        lines.append('   testData.SetInput();\n')
+        lines.append('   testData.SetOutputReference();\n')
+        lines.append('\n')
+        lines.append('   EXPECT_EQ(' + self.functionName + '(), testData.m_returnValue);\n')
+        lines.append('\n')
+        lines.append('   return MOS_STATUS_SUCCESS;\n')
+        lines.append('}\n')
+        file = self.filepath + '\\' + self.className + 'Test.cpp'
+        with open(file,'w') as fout:
+            fout.writelines(lines)
 
 
 
