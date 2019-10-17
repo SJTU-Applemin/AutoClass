@@ -11,6 +11,8 @@ from PySide2 import QtCore, QtGui, QtWidgets
 from MainWindow import Ui_MainWindow
 from generate import *
 
+import read_file
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -18,6 +20,7 @@ class MainWindow(QMainWindow):
         self.ui=Ui_MainWindow()
         self.ui.setupUi(self)
 
+        self.parser = None
         self.Content = ClassContent()
         self.fileContents = []
         self.classes = []
@@ -63,6 +66,7 @@ class MainWindow(QMainWindow):
         self.ui.comboBoxFunction.clear()
 
     def fillClassSelect(self):
+        self.classes = self.parser.className
         self.ui.comboBoxClass.clear()
         for item in self.classes:
             self.ui.comboBoxClass.addItem(item)
@@ -70,9 +74,9 @@ class MainWindow(QMainWindow):
     def fillFunctionSelect(self):
         self.ui.comboBoxFunction.clear()
         className = self.ui.comboBoxClass.currentText()
-        if not className:
+        if not className or className not in self.parser.className:
             return
-        for item in self.functions[className]:
+        for item in self.parser.functions_of_class[className]:
             self.ui.comboBoxFunction.addItem(item)
 
     @Slot()
@@ -95,39 +99,7 @@ class MainWindow(QMainWindow):
             msgBox.setInformativeText('File does not exists!')
             msgBox.exec_()
             return
-        with open(fileName, 'r') as fd:
-            self.fileContents = fd.readlines()
-            className = None
-            for line in self.fileContents:
-                line = line.strip()
-
-                # Enter a new class
-                if line.startswith('class'):
-                    line = line[5:].strip()
-                    # class classA : classB
-                    if line.find(':') > 0:
-                        className = line[:line.find(':')].strip()
-                    # class classA {
-                    elif line.find('{') > 0:
-                        className = line[:line.find('{')].strip()
-                    # class classA
-                    else:
-                        className = line
-                    self.classes.append(className)
-                    self.functions[className] = []
-                    classBraceFound = line.count('{')
-                    continue
-                if className:
-                    # line starts with '{' or '}'
-                    classBraceFound += line.count('{')
-                    classBraceFound -= line.count('}')
-                    # var function()
-                    if line.find('(') >= 0:
-                        line = line[:line.find('(')].strip()
-                        functionName = line.split(' ')[-1]
-                        self.functions[className].append(functionName)
-                    if classBraceFound <= 0:
-                        className = None
+        self.parser = read_file.read_h_file(fileName)
         self.fillClassSelect()
 
     @Slot()
