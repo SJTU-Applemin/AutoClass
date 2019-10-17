@@ -35,7 +35,7 @@ class MainWindow(QMainWindow):
         self.int_type = {'int', 'uint8_t','int8_t' , 'uint16_t', 'int16_t', 'uint32_t', 'int32_t', 'uint64_t', 'int64_t'}
         self.float_type = {'float32', 'float64', 'float', 'double'}
         self.container = {'string', 'vector', 'deque', 'list', 'forward_list', 'queue', 'priority_queue', 'stack'}
-
+        
 
 
         self.ui.pushButtonGenerate.clicked.connect(self.check_read_generate)
@@ -100,6 +100,10 @@ class MainWindow(QMainWindow):
             msgBox.exec_()
             return
         self.parser = read_file.read_h_file(fileName)
+        self.Content.parser = self.parser
+        self.Content.sourceFile = os.path.basename(fileName)
+        mediaPath = fileName[:fileName.find('media')]
+        self.Content.workspace = os.path.join(fileName[:fileName.find('media')], 'media\\media_embargo\\media_driver_next\\ult\\windows\\codec\\test')
         self.fillClassSelect()
 
     @Slot()
@@ -138,13 +142,16 @@ class MainWindow(QMainWindow):
             self.Content.functionName = self.ui.comboBoxFunction.currentText()
             self.Content.clear()
             self.readInfoFromUi()
-            self.Content.generate()
+            self.Content.generateTestDataH()
             self.Content.generateInput()
             self.Content.generateReference()
             self.Content.generateClassNameFocusTestCpp()
             self.Content.generateClassNameFocusTestH()
             self.Content.generateClassNameTestH()
             self.Content.generateClassNameTestCpp()
+            self.Content.generateResourceH()
+            self.Content.generateMediaDriverCodecUlt()
+            self.Content.generateUltSrcsCmake()
 
     def readInfoFromUi(self):
 
@@ -166,7 +173,7 @@ class MainWindow(QMainWindow):
             input = self.skipDescripter(input)
             input = self.skipQualifier(input)
             format = input.split(' ')[0].strip('*').strip('&')
-            self.Content.inputType.append(self.parseType(format))
+            self.Content.inputType.append(format)
 
             name = input.split(' ')[-1].strip('*').strip('&')
             self.Content.inputName.append(name)
@@ -192,7 +199,7 @@ class MainWindow(QMainWindow):
             output = self.skipDescripter(output)
             output = self.skipQualifier(output)
             format = output.split(' ')[0].strip('*').strip('&')
-            self.Content.outputType.append(self.parseType(format))
+            self.Content.outputType.append(format)
 
             #self.Content.outputType.append()
 
@@ -298,20 +305,20 @@ class MainWindow(QMainWindow):
         #if Edit.startswith('restrict'):
         #    Edit = Edit[len('restrict'):].strip()
 
-    def parseType(self,format):
-        if format in self.int_type:
-            return 'int'
-        elif format in self.float_type:
-            return 'float'
-        elif format in self.char_type:
-            return 'char'
-        elif format == 'bool':
-            return 'bool'
-        else:
-            for item in self.container:
-                if item in format:
-                    return 'container'
-        return 'selfDefined'
+    #def parseType(self,format):
+    #    if format in self.int_type:
+    #        return 'int'
+    #    elif format in self.float_type:
+    #        return 'float'
+    #    elif format in self.char_type:
+    #        return 'char'
+    #    elif format == 'bool':
+    #        return 'bool'
+    #    else:
+    #        for item in self.container:
+    #            if item in format:
+    #                return 'container'
+    #    return 'selfDefined'
 
 
 
