@@ -271,6 +271,7 @@ class ClassContent(object):
 
     def generateResourceH(self):
         file = self.workspace + '\\test_data\\resource.h'
+        resource = self.className + self.functionName + self.TestName[:-8]
         focus_start_index = -1
         with open(file, 'r') as fopen:
             lines = fopen.readlines()
@@ -281,7 +282,7 @@ class ClassContent(object):
         if focus_start_index < 0:
             lines.append('\n')
             lines.append('// Focus Test\n')
-            lines.append('#define IDR_HEVC_FT1_INPUT                             300\n')
+            lines.append('#define ' + resource + ' ' * max(1, (47-len(resource))) + '300\n')
             self.FTindex = 1
         
         else:
@@ -289,12 +290,12 @@ class ClassContent(object):
             for i in range(focus_start_index+1, len(lines)):
                 if not line.strip():
                     self.FTindex = str(i - focus_start_index)
-                    lines.append('#define IDR_HEVC_FT' + self.FTindex + '_INPUT' + ' ' * (33 - len(self.FTindex) - len(str(299 + i - focus_start_index))) + str(299 + i - focus_start_index) + '\n')
+                    lines.append('#define ' + resource + ' ' * max(1, (47-len(resource)))  + str(299 + i - focus_start_index) + '\n')
                     insert = True
                     return
             if not insert:
                 self.FTindex = str(len(lines) - focus_start_index)
-                lines.append('#define IDR_HEVC_FT' + self.FTindex + '_INPUT' + ' ' * (33 - len(self.FTindex) - len(str(299 + len(lines) - focus_start_index)))+ str(299 + len(lines) - focus_start_index) + '\n')
+                lines.append('#define ' + resource + ' ' * max(1, (47-len(resource))) + str(299 + len(lines) - focus_start_index) + '\n')
         with open(file, 'w') as fopen:
             fopen.writelines(lines)
         print('generate ', file)
@@ -302,7 +303,8 @@ class ClassContent(object):
     def generateMediaDriverCodecUlt(self):
         file = self.workspace + '\\test_data\\media_driver_codec_ult.rc'
         with open(file, 'a') as fopen:
-            fopen.write('IDR_HEVC_FT' + self.FTindex + '_input' + ' ' * (28 - len(self.FTindex)) + 'TEST_DATA     "focus_test/' + self.TestName[:-8] + '/' + self.className + self.functionName + self.TestName[:-8] + 'Input.dat"\n')
+            resource = self.className + self.functionName + self.TestName[:-8]
+            fopen.write(resource + ' ' * max(1, (45 - len(resource))) + 'TEST_DATA     "focus_test/' + self.TestName[:-8] + '/' + self.className + self.functionName + self.TestName[:-8] + 'Input.dat"\n')
         print('generate ', file)
 
     def generateUltSrcsCmake(self):
