@@ -370,17 +370,17 @@ class ClassContent(object):
             if line.strip().startswith('set(TMP_SOURCES_'):
                 for i in range(line_idx + 1, len(lines)):
                     if lines[i].strip().startswith(')'):
-                        lines.insert(i, '    ${CMAKE_CURRENT_LIST_DIR}/focus_test/' + self.className + 'FocusTest.cpp\n')
-                        lines.insert(i + 1, '    ${CMAKE_CURRENT_LIST_DIR}/focus_test/' + self.className + 'Test.cpp\n')
+                        lines.insert(i, '    ${CMAKE_CURRENT_LIST_DIR}/focus_test/' + self.className + '_test_case.cpp\n')
+                        lines.insert(i + 1, '    ${CMAKE_CURRENT_LIST_DIR}/focus_test/' + self.className + '_test.cpp\n')
                         break
                 break
         for line_idx, line in enumerate(lines):
             if line.strip().startswith('set(TMP_HEADERS_'):
                 for i in range(line_idx + 1, len(lines)):
                     if lines[i].strip().startswith(')'):
-                        lines.insert(i, '    ${CMAKE_CURRENT_LIST_DIR}/focus_test/' + self.className + 'FocusTest.h\n')
-                        lines.insert(i + 1, '    ${CMAKE_CURRENT_LIST_DIR}/focus_test/' + self.className + 'Test.h\n')
-                        lines.insert(i + 2, '    ${CMAKE_CURRENT_LIST_DIR}/focus_test/' + self.className + 'TestData.h\n')
+                        lines.insert(i, '    ${CMAKE_CURRENT_LIST_DIR}/focus_test/' + self.className + '_test_case.h\n')
+                        lines.insert(i + 1, '    ${CMAKE_CURRENT_LIST_DIR}/focus_test/' + self.className + '_test.h\n')
+                        lines.insert(i + 2, '    ${CMAKE_CURRENT_LIST_DIR}/focus_test/' + self.className + '_test_data.h\n')
                         break
                 break
         with open(file, 'w') as fopen:
