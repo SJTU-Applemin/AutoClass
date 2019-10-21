@@ -35,8 +35,10 @@ class MainWindow(QMainWindow):
         self.int_type = {'int', 'uint8_t','int8_t' , 'uint16_t', 'int16_t', 'uint32_t', 'int32_t', 'uint64_t', 'int64_t'}
         self.float_type = {'float32', 'float64', 'float', 'double'}
         self.container = {'string', 'vector', 'deque', 'list', 'forward_list', 'queue', 'priority_queue', 'stack'}
+        self.returnValueList = []
         
 
+        self.ui.comboBoxReturnValue.setEditable(True)
 
         self.ui.pushButtonGenerate.clicked.connect(self.check_read_generate)
         self.ui.lineEditTestName.textChanged.connect(partial(self.changebg,'TestName'))
@@ -49,6 +51,19 @@ class MainWindow(QMainWindow):
         self.ui.lineEditInputPara.editingFinished.connect(partial(self.fillLine,'InputPara'))
         self.ui.lineEditOutputPara.editingFinished.connect(partial(self.fillLine,'OutputPara'))
         self.ui.lineEditFile.editingFinished.connect(self.readHFile)
+
+    def setReturnValueList(self):
+        file = self.mediaPath + 'media\\media_driver\\agnostic\\common\\os\\mos_defs.h'
+        mosParser = read_file.read_h_file(file)
+        comboBoxReturnValue = self.ui.comboBoxReturnValue
+        for group in mosParser.enum:
+            if group[0] == '_MOS_STATUS':
+                self.returnValueList = group[1]
+                break
+        comboBoxReturnValue.clear()
+        for item in self.returnValueList:
+            comboBoxReturnValue.addItem(item[0])
+
 
     @Slot()
     def changebg(self,name,text):
@@ -102,9 +117,10 @@ class MainWindow(QMainWindow):
         self.parser = read_file.read_h_file(fileName)
         self.Content.parser = self.parser
         self.Content.sourceFile = os.path.basename(fileName)
-        mediaPath = fileName[:fileName.find('media')]
+        self.mediaPath = fileName[:fileName.find('media')]
         self.Content.workspace = os.path.join(fileName[:fileName.find('media')], 'media\\media_embargo\\media_driver_next\\ult\\windows\\codec\\test')
         self.fillClassSelect()
+        self.setReturnValueList()
 
     @Slot()
     def fillLine(self, name, flag = True):
@@ -132,8 +148,25 @@ class MainWindow(QMainWindow):
             self.ui.lineEditOutputPara.setStyleSheet('QLineEdit {background-color: rgb(255, 242, 0);}')
             blank.append('OutputPara')
 
+        if not self.ui.comboBoxReturnValue.currentText():
+            self.ui.comboBoxReturnValue.setStyleSheet('QLineEdit {background-color: rgb(255, 242, 0);}')
+            blank.append('ReturnValue')
+        else:
+            returnValue = self.ui.comboBoxReturnValue.currentText().strip()
+            found = False
+            for item in self.returnValueList:
+                if returnValue in item:
+                    found = True
+                    self.Content.returnValue = item[1]
+            if not found:
+                msgBox = QMessageBox()
+                msgBox.setText("Return Value is not valid!")
+                self.ui.comboBoxReturnValue.clearEditText()
+                msgBox.exec_()
+                return
+
         if blank:
-            msgBox = QQMessageBox()
+            msgBox = QMessageBox()
             str = ','.join(blank)
             msgBox.setText("Please fill %s" % str)
             msgBox.exec_()

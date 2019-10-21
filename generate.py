@@ -21,6 +21,7 @@ class ClassContent(object):
         self.parser = None
         self.sourceFile = ''
         self.FTindex = ''
+        self.returnValue = ''
 
 
     def clear(self):
@@ -135,6 +136,7 @@ class ClassContent(object):
                     value =  self.getParaValue(self.outputType[i])
                 para = output.split(' ')[-1].strip('*').strip('&')
                 lines.append(para + ' = ' + value + '\n')
+        lines.append('returnValue = ' + self.returnValue)
         path = self.workspace + '\\test_data\\focus_test\\' + self.TestName[:-8] + '\\'
         file = path + self.className + self.functionName + self.TestName[:-8] + 'Reference.dat'
         with open(file,'w') as fout:
