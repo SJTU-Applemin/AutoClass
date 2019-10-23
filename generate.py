@@ -56,7 +56,7 @@ class ClassContent(object):
         lines.append(' ' * indent + 'm_readTestData = MOS_New(ReadTestData, inputRcId, testName);\n')
         indent -= 3
         lines.append(' ' * indent + '};\n')
-        lines.append(' ' * indent + 'int m_returnValue = m_readTestData->GetInputParams("returnValue", "returnValue", 0);\n')
+        lines.append(' ' * indent + 'int m_returnValue = 0;\n')  #m_readTestData->GetInputParams("returnValue", "returnValue", 0);\n')
         lines.append(' ' * indent + 'struct _inputParameters\n')
         lines.append(' ' * indent + '{\n')
         indent += 3
@@ -94,7 +94,7 @@ class ClassContent(object):
         path = self.workspace + '\\focus_test\\'
         if not os.path.exists(path):
             os.makedirs(path)
-        file = path + self.className + '_test_data.h'
+        file = path + self.sourceFile[:-2] + '_test_data.h'
         with open(file,'w') as fout:
             fout.writelines(lines)
         print('generate ', file)
@@ -171,7 +171,7 @@ class ClassContent(object):
         else:
             indent = 0
         lines = []
-        lines.append('#include "' + self.className + '_test_case.h"\n')
+        lines.append('#include "' + self.sourceFile[:-2] + '_test_case.h"\n')
         lines.append('#include "test_data\\resource.h"\n')
         if self.parser.namespace:
             lines.append('namespace ' + self.parser.namespace +'\n')
@@ -180,12 +180,12 @@ class ClassContent(object):
         lines.append(' ' * indent + '{\n')
         indent += 3
         lines.append(' ' * indent + 'std::string testName = ::testing::UnitTest::GetInstance()->current_test_info()->name();\n')
-        lines.append(' ' * indent + 'EXPECT_EQ(m_test->' + self.functionName + 'Test(IDR_HEVC_FT1_INPUT, 0, testName), 0);\n')
+        lines.append(' ' * indent + 'EXPECT_EQ(m_test->' + self.functionName + 'Test(' + self.className + self.functionName + self.TestName[:-8] + ', 0, testName), 0);\n')
         indent -= 3
         lines.append(' ' * indent + '}\n')
         if self.parser.namespace:
             lines.append('}  // namespace encode\n')
-        file = self.workspace + '\\focus_test\\' + self.className + '_test_case.cpp'
+        file = self.workspace + '\\focus_test\\' + self.sourceFile[:-2] + '_test_case.cpp'
         with open(file,'w') as fout:
             fout.writelines(lines)
         print('generate ', file)
@@ -200,7 +200,7 @@ class ClassContent(object):
         lines.append('#define __ENCODE_HEVC_VDENC_PIPELINE_G12_FT_H__\n')
         lines.append('#include "gtest/gtest.h"\n')
         lines.append('#include "gmock/gmock.h"\n')
-        lines.append('#include "' + self.className + '_test.h"\n')
+        lines.append('#include "' + self.sourceFile[:-2] + '_test.h"\n')
         lines.append('using namespace testing;\n')
         if self.parser.namespace:
             lines.append('namespace ' + self.parser.namespace + '\n')
@@ -234,7 +234,7 @@ class ClassContent(object):
         if self.parser.namespace:
             lines.append('}\n')
         lines.append('#endif\n')
-        file = self.workspace + '\\focus_test\\' + self.className + '_test_case.h'
+        file = self.workspace + '\\focus_test\\' + self.sourceFile[:-2] + '_test_case.h'
         with open(file,'w') as fout:
             fout.writelines(lines)
         print('generate ', file)
@@ -251,7 +251,7 @@ class ClassContent(object):
         else:
             indent = 0
         lines = []
-        lines.append('#include "' + self.className + '_test_data.h"\n')
+        lines.append('#include "' + self.sourceFile[:-2] + '_test_data.h"\n')
         lines.append('#include "' + self.sourceFile + '"\n')
         lines.append('\n')
         if self.parser.namespace:
@@ -277,23 +277,24 @@ class ClassContent(object):
                 if i != len(construct['parameters']) - 1:
                     lines.append(' ,')
             lines.append('){};\n')
-        destruct_id = self.getMethodIndex('~' + self.className)
-        if destruct_id < 0:
-            print('ERROR: no destruct function')
-        else:
-            destruct = ''
-            for line in self.parser.methods[destruct_id]:
-                destruct = destruct + ' ' + line.strip()
-            destruct = destruct.strip()
-            if not destruct.endswith(';'):
-                destruct += ';'
-            lines.append(' ' * indent + destruct + '\n')
+        #destruct_id = self.getMethodIndex('~' + self.className)
+        #if destruct_id < 0:
+        #    print('ERROR: no destruct function')
+        #else:
+        #    destruct = ''
+        #    for line in self.parser.methods[destruct_id]:
+        #        destruct = destruct + ' ' + line.strip()
+        #    destruct = destruct.strip()
+        #    if not destruct.endswith(';'):
+        #        destruct += ';'
+        #    lines.append(' ' * indent + destruct + '\n')
+        lines.append(' ' * indent + 'virtual ~' + self.className + 'Test(){};\n')
         lines.append(' ' * indent + 'MOS_STATUS ' + self.functionName + 'Test(uint32_t inputRcId, uint32_t referenceRcId, std::string &testName);\n')
         indent -= 3
         lines.append(' ' * indent + '};\n')
         if self.parser.namespace:
             lines.append('}\n')
-        file = self.workspace + '\\focus_test\\' + self.className + '_test.h'
+        file = self.workspace + '\\focus_test\\' + self.sourceFile[:-2] + '_test.h'
         with open(file,'w') as fout:
             fout.writelines(lines)
         print('generate ', file)
@@ -304,7 +305,7 @@ class ClassContent(object):
         else:
             indent = 0
         lines = []
-        lines.append('#include "' + self.className + '_test.h"\n')
+        lines.append('#include "' + self.sourceFile[:-2] + '_test.h"\n')
         if self.parser.namespace:
             lines.append('namespace ' + self.parser.namespace + '\n')
             lines.append('{\n')
@@ -319,7 +320,7 @@ class ClassContent(object):
         lines.append(' ' * indent + '}\n')
         if self.parser.namespace:
             lines.append('}  // namespace encode\n')
-        file = self.workspace + '\\focus_test\\' + self.className + '_test.cpp'
+        file = self.workspace + '\\focus_test\\' + self.sourceFile[:-2] + '_test.cpp'
         with open(file,'w') as fout:
             fout.writelines(lines)
         print('generate ', file)
@@ -370,17 +371,17 @@ class ClassContent(object):
             if line.strip().startswith('set(TMP_SOURCES_'):
                 for i in range(line_idx + 1, len(lines)):
                     if lines[i].strip().startswith(')'):
-                        lines.insert(i, '    ${CMAKE_CURRENT_LIST_DIR}/focus_test/' + self.className + '_test_case.cpp\n')
-                        lines.insert(i + 1, '    ${CMAKE_CURRENT_LIST_DIR}/focus_test/' + self.className + '_test.cpp\n')
+                        lines.insert(i, '    ${CMAKE_CURRENT_LIST_DIR}/focus_test/' + self.sourceFile[:-2] + '_test_case.cpp\n')
+                        lines.insert(i + 1, '    ${CMAKE_CURRENT_LIST_DIR}/focus_test/' + self.sourceFile[:-2] + '_test.cpp\n')
                         break
                 break
         for line_idx, line in enumerate(lines):
             if line.strip().startswith('set(TMP_HEADERS_'):
                 for i in range(line_idx + 1, len(lines)):
                     if lines[i].strip().startswith(')'):
-                        lines.insert(i, '    ${CMAKE_CURRENT_LIST_DIR}/focus_test/' + self.className + '_test_case.h\n')
-                        lines.insert(i + 1, '    ${CMAKE_CURRENT_LIST_DIR}/focus_test/' + self.className + '_test.h\n')
-                        lines.insert(i + 2, '    ${CMAKE_CURRENT_LIST_DIR}/focus_test/' + self.className + '_test_data.h\n')
+                        lines.insert(i, '    ${CMAKE_CURRENT_LIST_DIR}/focus_test/' + self.sourceFile[:-2] + '_test_case.h\n')
+                        lines.insert(i + 1, '    ${CMAKE_CURRENT_LIST_DIR}/focus_test/' + self.sourceFile[:-2] + '_test.h\n')
+                        lines.insert(i + 2, '    ${CMAKE_CURRENT_LIST_DIR}/focus_test/' + self.sourceFile[:-2] + '_test_data.h\n')
                         break
                 break
         with open(file, 'w') as fopen:
