@@ -104,7 +104,7 @@ class MainWindow(QMainWindow):
 
     def readHFile(self):
         self.clearComboboxSelect()
-        fileName = self.ui.lineEditFile.text()
+        fileName = self.ui.lineEditFile.text().strip()
         if not fileName.strip():
             return
         if not os.path.exists(fileName):
@@ -170,15 +170,29 @@ class MainWindow(QMainWindow):
             str = ','.join(blank)
             msgBox.setText("Please fill %s" % str)
             msgBox.exec_()
-        else:
-            self.Content.className = self.ui.comboBoxClass.currentText()
-            self.Content.functionName = self.ui.comboBoxFunction.currentText()
-            self.Content.clear()
-            self.readInfoFromUi()
-            self.Content.generateTestDataH()
+            return
+
+        self.Content.className = self.ui.comboBoxClass.currentText()
+        self.Content.functionName = self.ui.comboBoxFunction.currentText()
+        self.Content.clear()
+        self.readInfoFromUi()
+        existFile, existFunction, existCase = self.checkTestExist()
+        if existCase:   # same case exists, update input paras   
+            self.Content.generateTestDataH(update = True)
             self.Content.generateDat()
-            #self.Content.generateInput()
-            #self.Content.generateReference()
+        elif existFunction:   # same test with different case name, update input values
+            if self.sameInputParas():
+                self.Content.generateTestDataH()
+                self.Content.generateDat()
+            else:
+                msgBox = QMessageBox()
+                str = ','.join(blank)
+                msgBox.setText('Same test case exists with different name and paras, update it First!')
+                msgBox.exec_()
+                return
+        else:
+            self.Content.generateTestDataH(existFile)
+            self.Content.generateDat()
             self.Content.generateTestCaseCpp()
             self.Content.generateTestCaseH()
             self.Content.generateTestH()
@@ -187,10 +201,59 @@ class MainWindow(QMainWindow):
             self.Content.generateMediaDriverCodecUlt()
             self.Content.generateUltSrcsCmake()
 
+    def checkTestExist(self):
+        testDataFile = os.path.join(self.Content.workspace, 'focus_test\\' + self.Content.sourceFile[:-2] + '_test_case.cpp')
+        if not os.path.exists(testDataFile):
+            return False,False, False   # no such test exists
+        with open(testDataFile, 'r') as fopen:
+            lines = fopen.readlines()
+        function = self.Content.className + 'Test_' + self.Content.functionName
+        case = self.Content.className + 'Test_' + self.Content.functionName + '_' + self.Content.TestName[:-8]
+        for line in lines:
+            if line.find(case) >= 0:    # exist same class, function, caseName
+                return True, True, True
+            elif line.find(function) >= 0:  # exist same class function with different caseName
+                return True, True, False
+        return True, False, False  # no such class, function exists
+
+        #for line_idx, line in enumerate(lines):
+        #    if line.strip().startswith('struct _inputParameters'):
+        #        line_idx = line_idx + 2
+        #        break
+        #inputPara = []
+        #while lines[line_idx].find('}') < 0:
+        #    line = lines[line_idx].strip().strip(';')
+        #    paras = line.split()
+        #    inputPara.append([paras[0], paras[-1]])
+        #if len(inputPara) != len(self.Content.inputPara):
+        #    return False
+        #for i in range(len(inputPara)):
+        #    if inputPara[i][0] != self.Content.inputType or inputPara[i][1] != self.Content.inputName:
+        #        return False
+        
+
+    def sameInputParas(self):
+        testDataFile = os.path.join(self.Content.workspace, 'focus_test\\' + self.Content.sourceFile[:-2] + '_test_data.h')
+        with open(testDataFile, 'r') as fopen:
+            lines = fopen.readlines()
+        for line_idx, line in enumerate(lines):
+            if line.strip().startswith('struct _inputParameters'):
+                line_idx = line_idx + 2
+                break
+        inputPara = []
+        while lines[line_idx].find('}') < 0:
+            line = lines[line_idx].strip().strip(';')
+            paras = line.split()
+            inputPara.append([paras[0], paras[-1]])
+        if len(inputPara) != len(self.Content.inputPara):
+            return False
+        for i in range(len(inputPara)):
+            if inputPara[i][0] != self.Content.inputType or inputPara[i][1] != self.Content.inputName:
+                return False
+        return True
+
     def readInfoFromUi(self):
-
         self.Content.TestName=self.ui.lineEditTestName.text().strip() + 'TestData'
-
         inputPara = self.ui.lineEditInputPara.text().strip()
         inputPara = inputPara.split(',')    # if string contains ',' may cause error
         for input in inputPara:
@@ -208,7 +271,6 @@ class MainWindow(QMainWindow):
             input = self.skipQualifier(input)
             format = input.split(' ')[0].strip('*').strip('&')
             self.Content.inputType.append(format)
-
             name = input.split(' ')[-1].strip('*').strip('&')
             self.Content.inputName.append(name)
             #if format in self.int_type:

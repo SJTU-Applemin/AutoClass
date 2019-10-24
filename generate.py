@@ -10,7 +10,6 @@ class ClassContent(object):
         self.inputType = []
         self.inputValue = []
         self.outputType = []
-        self.filename = ''
         self.file_header = os.getcwd() + '\\' + 'sample_header.txt'
         self.workspace = ''
         self.includes = ['vp_reder_sfc_base.h', 'pipeline.h']
@@ -32,74 +31,98 @@ class ClassContent(object):
         self.inputType = []
         self.inputValue = []
         self.outputPara = []
-        #self.lines = []
-        #self.filename = ''
+        self.outputName = []
+        self.outputType = []
 
-    def generateTestDataH(self):
-        if self.parser.namespace:
-            indent = 3
-        else:
-            indent = 0
-        lines = []
-        lines.append('#ifndef __HEVCVDENCPIPELINETESTDATA_H__\n')
-        lines.append('#define __HEVCVDENCPIPELINETESTDATA_H__\n')
-        lines.append('#include "read_test_data.h"\n')
-        if self.parser.namespace:
-            lines.append('namespace ' + self.parser.namespace + '\n')
-            lines.append('{\n')
-        lines.append(' ' * indent + 'class ' + self.className + '_' + self.functionName + '_TestData : public TestData\n')
-        lines.append(' ' * indent + '{\n')
-        lines.append(' ' * indent + 'public:\n')
-        indent += 3
-        lines.append(' ' * indent + self.className + '_' + self.functionName + '_TestData(uint32_t inputRcId, std::string &testName)\n')
-        lines.append(' ' * indent + '{\n')
-        indent += 3
-        lines.append(' ' * indent + 'm_readTestData = MOS_New(ReadTestData, inputRcId, testName);\n')
-        indent -= 3
-        lines.append(' ' * indent + '};\n')
-        lines.append('\n')
-        lines.append(' ' * indent + 'int m_returnValue = m_readTestData->GetInputParams("ReturnValue", "returnValue", 0);\n')  #m_readTestData->GetInputParams("returnValue", "returnValue", 0);\n')
-        lines.append('\n')
-        lines.append(' ' * indent + 'struct _inputParameters\n')
-        lines.append(' ' * indent + '{\n')
-        indent += 3
-        for item in self.inputPara:
-            lines.append(' ' * indent + item + ';\n')
-        indent -= 3
-        lines.append(' ' * indent + '} inputParameters;\n')
-        lines.append('\n')
-        lines.append(' ' * indent + 'struct _outputParameters\n')
-        lines.append(' ' * indent + '{\n')
-        indent += 3
-        for item in self.outputPara:
-            lines.append(' ' * indent + item + ';\n')
-        indent -= 3
-        lines.append(' ' * indent + '} outputParameters;\n')
-        lines.append('\n')
-        lines.append(' ' * indent + 'void SetInput()\n')
-        lines.append(' ' * indent + '{\n')
-        indent += 3
-        for index, item in enumerate(self.inputName):
-            lines.append(' ' * indent + 'inputParameters.' + item + ' = ' + self.getCastType(self.inputType[index]) + 'm_readTestData->GetInputParams("Input", "' + item + '", ' + self.getParaValue(self.inputType[index]) + ');\n')
-        indent -= 3
-        lines.append(' ' * indent + '}\n')
-        lines.append('\n')
-        lines.append(' ' * indent + 'void SetOutputReference()\n')
-        lines.append(' ' * indent + '{\n')
-        indent += 3
-        for index, item in enumerate(self.outputName):
-            lines.append(' ' * indent + 'outputParameters.' + item + ' = ' + self.getCastType(self.outputType[index]) + 'm_readTestData->GetInputParams("Output", "' + item + '", ' + self.getParaValue(self.outputType[index]) + ');\n')
-        indent -= 3
-        lines.append(' ' * indent + '}\n')
-        indent -= 3
-        lines.append(' ' * indent + '};\n')
-        if self.parser.namespace:
-            lines.append('}  // namespace encode\n')
-        lines.append('#endif\n')
+    # append if exists
+    def generateTestDataH(self, update = False):
         path = self.workspace + '\\focus_test\\'
         if not os.path.exists(path):
             os.makedirs(path)
         file = path + self.sourceFile[:-2] + '_test_data.h'
+        removeHead, removeTail = -1, -1
+        if self.parser.namespace:
+            indent = 3
+        else:
+            indent = 0
+        if not update:
+            lines = []
+            lines.append('#ifndef __HEVCVDENCPIPELINETESTDATA_H__\n')
+            lines.append('#define __HEVCVDENCPIPELINETESTDATA_H__\n')
+            lines.append('#include "read_test_data.h"\n')
+            if self.parser.namespace:
+                lines.append('namespace ' + self.parser.namespace + '\n')
+                lines.append('{\n')
+            if self.parser.namespace:
+                lines.append('}  // namespace encode\n')
+            lines.append('#endif\n')
+        else:
+            with open(file,'r') as fout:
+                lines = fout.readlines()
+            for line_idx, line in enumerate(lines):
+                if line.find('class ' + self.className + '_' + self.functionName) >= 0:
+                    removeHead = line_idx - 1
+                    break
+            if removeHead >= 0:
+                for line_idx in range(removeHead + 1, len(lines)):
+                    if lines[line_idx].find('};') >= 0:
+                        removeTail = line_idx
+                        break
+
+        insertLines = []
+        insertLines.append('\n')
+        insertLines.append(' ' * indent + 'class ' + self.className + '_' + self.functionName + '_TestData : public TestData\n')
+        insertLines.append(' ' * indent + '{\n')
+        insertLines.append(' ' * indent + 'public:\n')
+        indent += 3
+        insertLines.append(' ' * indent + self.className + '_' + self.functionName + '_TestData(uint32_t inputRcId, std::string &testName)\n')
+        insertLines.append(' ' * indent + '{\n')
+        indent += 3
+        insertLines.append(' ' * indent + 'm_readTestData = MOS_New(ReadTestData, inputRcId, testName);\n')
+        indent -= 3
+        insertLines.append(' ' * indent + '}\n')
+        insertLines.append('\n')
+        insertLines.append(' ' * indent + 'int m_returnValue = m_readTestData->GetInputParams("ReturnValue", "returnValue", 0);\n')  #m_readTestData->GetInputParams("returnValue", "returnValue", 0);\n')
+        insertLines.append('\n')
+        insertLines.append(' ' * indent + 'struct _inputParameters\n')
+        insertLines.append(' ' * indent + '{\n')
+        indent += 3
+        for item in self.inputPara:
+            insertLines.append(' ' * indent + item + ';\n')
+        indent -= 3
+        insertLines.append(' ' * indent + '} inputParameters;\n')
+        insertLines.append('\n')
+        insertLines.append(' ' * indent + 'struct _outputParameters\n')
+        insertLines.append(' ' * indent + '{\n')
+        indent += 3
+        for item in self.outputPara:
+            insertLines.append(' ' * indent + item + ';\n')
+        indent -= 3
+        insertLines.append(' ' * indent + '} outputParameters;\n')
+        insertLines.append('\n')
+        insertLines.append(' ' * indent + 'void SetInput()\n')
+        insertLines.append(' ' * indent + '{\n')
+        indent += 3
+        for index, item in enumerate(self.inputName):
+            insertLines.append(' ' * indent + 'inputParameters.' + item + ' = ' + self.getCastType(self.inputType[index]) + 'm_readTestData->GetInputParams("Input", "' + item + '", ' + self.getParaValue(self.inputType[index]) + ');\n')
+        indent -= 3
+        insertLines.append(' ' * indent + '}\n')
+        insertLines.append('\n')
+        insertLines.append(' ' * indent + 'void SetOutputReference()\n')
+        insertLines.append(' ' * indent + '{\n')
+        indent += 3
+        for index, item in enumerate(self.outputName):
+            insertLines.append(' ' * indent + 'outputParameters.' + item + ' = ' + self.getCastType(self.outputType[index]) + 'm_readTestData->GetInputParams("Output", "' + item + '", ' + self.getParaValue(self.outputType[index]) + ');\n')
+        indent -= 3
+        insertLines.append(' ' * indent + '}\n')
+        indent -= 3
+        insertLines.append(' ' * indent + '};\n')
+        
+        if removeHead >= 0:
+            lines = lines[:removeHead] + lines[removeTail + 1:len(lines)-2] + insertLines + lines[len(lines)-2:]
+        else:
+            lines = lines[:len(lines)-2] + insertLines + lines[len(lines)-2:]
+
         with open(file,'w') as fout:
             fout.writelines(lines)
         print('generate ', file)
@@ -129,39 +152,6 @@ class ClassContent(object):
         if not os.path.exists(path):
             os.makedirs(path)
         file = path + self.className + self.functionName + self.TestName[:-8] + '.dat'
-        with open(file,'w') as fout:
-            fout.writelines(lines)
-        print('generate ', file)
-        
-    #def generateInput(self):
-    #    lines = []
-    #    lines.append('<Header>\n')
-    #    for index in range(len(self.inputName)):
-    #        if self.inputValue[index]:
-    #            lines.append(self.inputName[index] + ' = ' + self.inputValue[index] + '\n')
-    #        else:
-    #            lines.append(self.inputName[index] + ' = None\n')
-    #    path = self.workspace + '\\test_data\\focus_test\\' + self.TestName[:-8] + '\\'
-    #    if not os.path.exists(path):
-    #        os.makedirs(path)
-    #    file = path + self.className + self.functionName + self.TestName[:-8] + 'Input.dat'
-    #    with open(file,'w') as fout:
-    #        fout.writelines(lines)
-    #    print('generate ', file)
-
-    def generateReference(self):
-        lines = []
-        lines.append('<Header>\n')
-        for i, output in enumerate(self.outputPara):
-                if '*' in output:
-                    value = 'nullptr'
-                else:
-                    value =  self.getParaValue(self.outputType[i])
-                para = output.split(' ')[-1].strip('*').strip('&')
-                lines.append(para + ' = ' + value + '\n')
-        lines.append('returnValue = ' + self.returnValue)
-        path = self.workspace + '\\test_data\\focus_test\\' + self.TestName[:-8] + '\\'
-        file = path + self.className + self.functionName + self.TestName[:-8] + 'Reference.dat'
         with open(file,'w') as fout:
             fout.writelines(lines)
         print('generate ', file)
