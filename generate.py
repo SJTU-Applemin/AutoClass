@@ -178,27 +178,33 @@ class ClassContent(object):
             return 'null'
 
 
-    def generateTestCaseCpp(self):
+    def generateTestCaseCpp(self, update = False):
+        file = self.workspace + '\\focus_test\\' + self.sourceFile[:-2] + '_test_case.cpp'
         if self.parser.namespace:
             indent = 3
         else:
             indent = 0
-        lines = []
-        lines.append('#include "' + self.sourceFile[:-2] + '_test_case.h"\n')
-        lines.append('#include "test_data\\resource.h"\n')
-        if self.parser.namespace:
-            lines.append('namespace ' + self.parser.namespace +'\n')
-            lines.append('{\n')
-        lines.append(' ' * indent + 'TEST_F(' + self.className + 'FT, ' + self.className + 'Test_' + self.functionName + '_' + self.TestName[:-8] + ')\n')
-        lines.append(' ' * indent + '{\n')
+        if not update:
+            lines = []
+            lines.append('#include "' + self.sourceFile[:-2] + '_test_case.h"\n')
+            lines.append('#include "test_data\\resource.h"\n')
+            if self.parser.namespace:
+                lines.append('namespace ' + self.parser.namespace +'\n')
+                lines.append('{\n')
+                lines.append('}  // namespace encode\n')
+        else:
+            with open(file) as fopen:
+                lines = fopen.readlines()
+        newLines = []
+        newLines.append(' ' * indent + 'TEST_F(' + self.className + 'FT, ' + self.className + 'Test_' + self.functionName + '_' + self.TestName[:-8] + ')\n')
+        newLines.append(' ' * indent + '{\n')
         indent += 3
-        lines.append(' ' * indent + 'std::string testName = ::testing::UnitTest::GetInstance()->current_test_info()->name();\n')
-        lines.append(' ' * indent + 'EXPECT_EQ(m_test->' + self.functionName + 'Test(' + self.className + self.functionName + self.TestName[:-8] + ', testName), 0);\n')
+        newLines.append(' ' * indent + 'std::string testName = ::testing::UnitTest::GetInstance()->current_test_info()->name();\n')
+        newLines.append(' ' * indent + 'EXPECT_EQ(m_test->' + self.functionName + 'Test(' + self.className + self.functionName + self.TestName[:-8] + ', testName), 0);\n')
         indent -= 3
-        lines.append(' ' * indent + '}\n')
-        if self.parser.namespace:
-            lines.append('}  // namespace encode\n')
-        file = self.workspace + '\\focus_test\\' + self.sourceFile[:-2] + '_test_case.cpp'
+        newLines.append(' ' * indent + '}\n')
+        
+        lines = lines[:-1] + newLines + lines[-1:]
         with open(file,'w') as fout:
             fout.writelines(lines)
         print('generate ', file)
@@ -244,6 +250,7 @@ class ClassContent(object):
         lines.append(' ' * indent + self.className + 'Test *m_test = nullptr;\n')
         indent -= 3
         lines.append(' ' * indent + '};\n')
+
         if self.parser.namespace:
             lines.append('}\n')
         lines.append('#endif\n')

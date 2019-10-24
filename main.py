@@ -182,7 +182,7 @@ class MainWindow(QMainWindow):
             self.Content.generateDat()
         elif existFunction:   # same test with different case name, update input values
             if self.sameInputParas():
-                self.Content.generateTestDataH()
+                self.Content.generateTestCaseCpp(True)
                 self.Content.generateDat()
             else:
                 msgBox = QMessageBox()
@@ -209,12 +209,13 @@ class MainWindow(QMainWindow):
             lines = fopen.readlines()
         function = self.Content.className + 'Test_' + self.Content.functionName
         case = self.Content.className + 'Test_' + self.Content.functionName + '_' + self.Content.TestName[:-8]
+        sameFunction = False
         for line in lines:
             if line.find(case) >= 0:    # exist same class, function, caseName
                 return True, True, True
             elif line.find(function) >= 0:  # exist same class function with different caseName
-                return True, True, False
-        return True, False, False  # no such class, function exists
+                sameFunction = True
+        return True, sameFunction, False  # no such class, function exists
 
         #for line_idx, line in enumerate(lines):
         #    if line.strip().startswith('struct _inputParameters'):
@@ -238,19 +239,39 @@ class MainWindow(QMainWindow):
             lines = fopen.readlines()
         for line_idx, line in enumerate(lines):
             if line.strip().startswith('struct _inputParameters'):
-                line_idx = line_idx + 2
+                index = line_idx + 2
                 break
         inputPara = []
-        while lines[line_idx].find('}') < 0:
-            line = lines[line_idx].strip().strip(';')
+        while lines[index].find('}') < 0:
+            line = lines[index].strip().strip(';')
             paras = line.split()
             inputPara.append([paras[0], paras[-1]])
+            index += 1
         if len(inputPara) != len(self.Content.inputPara):
             return False
         for i in range(len(inputPara)):
-            if inputPara[i][0] != self.Content.inputType or inputPara[i][1] != self.Content.inputName:
+            if inputPara[i][0] != self.Content.inputType[i] or inputPara[i][1] != self.Content.inputName[i]:
+                return False
+
+        for line_idx in range(index, len(lines)):
+            if lines[line_idx].find('struct _outputParameters') >= 0:
+                index = line_idx + 2
+                break
+        outputPara = []
+        while lines[index].find('}') < 0:
+            line = lines[index].strip().strip(';')
+            paras = line.split()
+            outputPara.append([paras[0], paras[-1]])
+            index += 1
+        if len(outputPara) != len(self.Content.outputPara):
+            return False
+        for i in range(len(outputPara)):
+            if outputPara[i][0] != self.Content.outputType[i] or outputPara[i][1] != self.Content.outputName[i]:
                 return False
         return True
+
+
+
 
     def readInfoFromUi(self):
         self.Content.TestName=self.ui.lineEditTestName.text().strip() + 'TestData'
