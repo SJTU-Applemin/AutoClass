@@ -22,6 +22,7 @@ class ClassContent(object):
         self.sourceFile = ''
         self.FTindex = ''
         self.returnValue = ''
+        self.outputName = []
 
 
     def clear(self):
@@ -50,13 +51,15 @@ class ClassContent(object):
         lines.append(' ' * indent + '{\n')
         lines.append(' ' * indent + 'public:\n')
         indent += 3
-        lines.append(' ' * indent + self.className + '_' + self.functionName + '_TestData(uint32_t inputRcId, uint32_t referenceRcId, std::string &testName)\n')
+        lines.append(' ' * indent + self.className + '_' + self.functionName + '_TestData(uint32_t inputRcId, std::string &testName)\n')
         lines.append(' ' * indent + '{\n')
         indent += 3
         lines.append(' ' * indent + 'm_readTestData = MOS_New(ReadTestData, inputRcId, testName);\n')
         indent -= 3
         lines.append(' ' * indent + '};\n')
-        lines.append(' ' * indent + 'int m_returnValue = 0;\n')  #m_readTestData->GetInputParams("returnValue", "returnValue", 0);\n')
+        lines.append('\n')
+        lines.append(' ' * indent + 'int m_returnValue = m_readTestData->GetInputParams("ReturnValue", "returnValue", 0);\n')  #m_readTestData->GetInputParams("returnValue", "returnValue", 0);\n')
+        lines.append('\n')
         lines.append(' ' * indent + 'struct _inputParameters\n')
         lines.append(' ' * indent + '{\n')
         indent += 3
@@ -77,14 +80,16 @@ class ClassContent(object):
         lines.append(' ' * indent + '{\n')
         indent += 3
         for index, item in enumerate(self.inputName):
-            lines.append(' ' * indent + 'inputParameters.' + item + ' = ' + self.getCastType(self.inputType[index]) + 'm_readTestData->GetInputParams("' + item + '", "' + item + '", ' + self.getParaValue(self.inputType[index]) + ');\n')
+            lines.append(' ' * indent + 'inputParameters.' + item + ' = ' + self.getCastType(self.inputType[index]) + 'm_readTestData->GetInputParams("Input", "' + item + '", ' + self.getParaValue(self.inputType[index]) + ');\n')
         indent -= 3
-        lines.append('\n')
         lines.append(' ' * indent + '}\n')
         lines.append('\n')
         lines.append(' ' * indent + 'void SetOutputReference()\n')
         lines.append(' ' * indent + '{\n')
-        lines.append('\n')
+        indent += 3
+        for index, item in enumerate(self.outputName):
+            lines.append(' ' * indent + 'outputParameters.' + item + ' = ' + self.getCastType(self.outputType[index]) + 'm_readTestData->GetInputParams("Output", "' + item + '", ' + self.getParaValue(self.outputType[index]) + ');\n')
+        indent -= 3
         lines.append(' ' * indent + '}\n')
         indent -= 3
         lines.append(' ' * indent + '};\n')
@@ -99,32 +104,50 @@ class ClassContent(object):
             fout.writelines(lines)
         print('generate ', file)
 
-    #def generate(self):
 
-    #    self.filename = self.className + 'TestData.h'
-    #    #self.add_file_header()
-    #    #self.addHeaders()
-    #    self.addIncludeH(self.includes)
-    #    self.addParent()
-    #    self.addBody()
-    #    self.addHeaders()
-    #    self.writefile()
-        
-    def generateInput(self):
+    def generateDat(self):
         lines = []
-        lines.append('<Header>\n')
+        lines.append('<Input>\n')
         for index in range(len(self.inputName)):
             if self.inputValue[index]:
                 lines.append(self.inputName[index] + ' = ' + self.inputValue[index] + '\n')
             else:
                 lines.append(self.inputName[index] + ' = None\n')
+        lines.append('\n')
+        lines.append('<ReturnValue>\n')
+        lines.append('returnValue = ' + self.returnValue + '\n')
+        lines.append('\n')
+        lines.append('<Output>\n')
+        for i, output in enumerate(self.outputPara):
+                if '*' in output:
+                    value = 'nullptr'
+                else:
+                    value =  self.getParaValue(self.outputType[i])
+                para = output.split(' ')[-1].strip('*').strip('&')
+                lines.append(para + ' = ' + value + '\n')
         path = self.workspace + '\\test_data\\focus_test\\' + self.TestName[:-8] + '\\'
         if not os.path.exists(path):
             os.makedirs(path)
-        file = path + self.className + self.functionName + self.TestName[:-8] + 'Input.dat'
+        file = path + self.className + self.functionName + self.TestName[:-8] + '.dat'
         with open(file,'w') as fout:
             fout.writelines(lines)
         print('generate ', file)
+        
+    #def generateInput(self):
+    #    lines = []
+    #    lines.append('<Header>\n')
+    #    for index in range(len(self.inputName)):
+    #        if self.inputValue[index]:
+    #            lines.append(self.inputName[index] + ' = ' + self.inputValue[index] + '\n')
+    #        else:
+    #            lines.append(self.inputName[index] + ' = None\n')
+    #    path = self.workspace + '\\test_data\\focus_test\\' + self.TestName[:-8] + '\\'
+    #    if not os.path.exists(path):
+    #        os.makedirs(path)
+    #    file = path + self.className + self.functionName + self.TestName[:-8] + 'Input.dat'
+    #    with open(file,'w') as fout:
+    #        fout.writelines(lines)
+    #    print('generate ', file)
 
     def generateReference(self):
         lines = []
@@ -180,7 +203,7 @@ class ClassContent(object):
         lines.append(' ' * indent + '{\n')
         indent += 3
         lines.append(' ' * indent + 'std::string testName = ::testing::UnitTest::GetInstance()->current_test_info()->name();\n')
-        lines.append(' ' * indent + 'EXPECT_EQ(m_test->' + self.functionName + 'Test(' + self.className + self.functionName + self.TestName[:-8] + ', 0, testName), 0);\n')
+        lines.append(' ' * indent + 'EXPECT_EQ(m_test->' + self.functionName + 'Test(' + self.className + self.functionName + self.TestName[:-8] + ', testName), 0);\n')
         indent -= 3
         lines.append(' ' * indent + '}\n')
         if self.parser.namespace:
@@ -289,7 +312,7 @@ class ClassContent(object):
         #        destruct += ';'
         #    lines.append(' ' * indent + destruct + '\n')
         lines.append(' ' * indent + 'virtual ~' + self.className + 'Test(){};\n')
-        lines.append(' ' * indent + 'MOS_STATUS ' + self.functionName + 'Test(uint32_t inputRcId, uint32_t referenceRcId, std::string &testName);\n')
+        lines.append(' ' * indent + 'MOS_STATUS ' + self.functionName + 'Test(uint32_t inputRcId, std::string &testName);\n')
         indent -= 3
         lines.append(' ' * indent + '};\n')
         if self.parser.namespace:
@@ -309,12 +332,13 @@ class ClassContent(object):
         if self.parser.namespace:
             lines.append('namespace ' + self.parser.namespace + '\n')
             lines.append('{\n')
-        lines.append(' ' * indent + 'MOS_STATUS ' + self.className + 'Test::' + self.functionName + 'Test(uint32_t inputRcId, uint32_t referenceRcId, std::string &testName)\n')
+        lines.append(' ' * indent + 'MOS_STATUS ' + self.className + 'Test::' + self.functionName + 'Test(uint32_t inputRcId, std::string &testName)\n')
         lines.append(' ' * indent + '{\n')
         indent += 3
-        lines.append(' ' * indent + self.className + '_' + self.functionName + '_TestData testData(inputRcId, referenceRcId, testName);\n')
+        lines.append(' ' * indent + self.className + '_' + self.functionName + '_TestData testData(inputRcId, testName);\n')
         lines.append(' ' * indent + 'testData.SetInput();\n')
         lines.append(' ' * indent + 'testData.SetOutputReference();\n')
+        lines.append(' ' * indent + '//EXPECT_EQ(' + self.functionName + '(), testData.m_returnValue);\n')
         lines.append(' ' * indent + 'return MOS_STATUS_SUCCESS;\n')
         indent -= 3
         lines.append(' ' * indent + '}\n')

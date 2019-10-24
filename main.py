@@ -176,8 +176,9 @@ class MainWindow(QMainWindow):
             self.Content.clear()
             self.readInfoFromUi()
             self.Content.generateTestDataH()
-            self.Content.generateInput()
-            self.Content.generateReference()
+            self.Content.generateDat()
+            #self.Content.generateInput()
+            #self.Content.generateReference()
             self.Content.generateTestCaseCpp()
             self.Content.generateTestCaseH()
             self.Content.generateTestH()
@@ -233,7 +234,7 @@ class MainWindow(QMainWindow):
             output = self.skipQualifier(output)
             format = output.split(' ')[0].strip('*').strip('&')
             self.Content.outputType.append(format)
-
+            self.Content.outputName.append(output.split(' ')[-1].strip('*').strip('&'))
             #self.Content.outputType.append()
 
     def generateClass(self):
