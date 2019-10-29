@@ -209,7 +209,8 @@ class MainWindow(QMainWindow):
             self.Content.generateTestCpp(existFile)
             self.Content.generateResourceH()
             self.Content.generateMediaDriverCodecUlt()
-            self.Content.generateUltSrcsCmake()
+            if not existFile:
+                self.Content.generateUltSrcsCmake()
 
     def checkTestExist(self):
         testDataFile = os.path.join(self.Content.workspace, 'focus_test\\' + self.Content.sourceFile[:-2] + '_test_case.cpp')

@@ -412,7 +412,7 @@ class ClassContent(object):
         file = self.workspace + '\\test_data\\media_driver_codec_ult.rc'
         with open(file, 'a') as fopen:
             resource = self.className + self.functionName + self.TestName[:-8]
-            fopen.write(resource + ' ' * max(1, (45 - len(resource))) + 'TEST_DATA     "focus_test/' + self.TestName[:-8] + '/' + self.className + self.functionName + self.TestName[:-8] + '.dat"\n')
+            fopen.write(resource + ' ' * max(1, (45 - len(resource))) + 'TEST_DATA     "focus_test/' + self.className + '/' + self.className + self.functionName + self.TestName[:-8] + '.dat"\n')
         print('generate ', file)
 
     def generateUltSrcsCmake(self):
