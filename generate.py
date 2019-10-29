@@ -82,7 +82,7 @@ class ClassContent(object):
         indent -= 3
         insertLines.append(' ' * indent + '}\n')
         insertLines.append('\n')
-        insertLines.append(' ' * indent + 'int m_returnValue = m_readTestData->GetInputParams("ReturnValue", "returnValue", 0);\n')  #m_readTestData->GetInputParams("returnValue", "returnValue", 0);\n')
+        insertLines.append(' ' * indent + 'int m_returnValue = 0;\n')  #m_readTestData->GetInputParams("returnValue", "returnValue", 0);\n')
         insertLines.append('\n')
         insertLines.append(' ' * indent + 'struct _inputParameters\n')
         insertLines.append(' ' * indent + '{\n')
@@ -111,6 +111,7 @@ class ClassContent(object):
         insertLines.append(' ' * indent + 'void SetOutputReference()\n')
         insertLines.append(' ' * indent + '{\n')
         indent += 3
+        insertLines.append(' ' * indent + 'm_returnValue = m_readTestData->GetInputParams("ReturnValue", "returnValue", 0);\n')
         for index, item in enumerate(self.outputName):
             insertLines.append(' ' * indent + 'outputParameters.' + item + ' = ' + self.getCastType(self.outputType[index]) + 'm_readTestData->GetInputParams("Output", "' + item + '", ' + self.getParaValue(self.outputType[index]) + ');\n')
         indent -= 3
@@ -127,13 +128,19 @@ class ClassContent(object):
             fout.writelines(lines)
         print('generate ', file)
 
+    def changeBool(self, s):
+        if s.lower() == 'true':
+            return '1'
+        if s.lower() == 'false':
+            return '0'
+        return s
 
     def generateDat(self):
         lines = []
         lines.append('<Input>\n')
         for index in range(len(self.inputName)):
             if self.inputValue[index]:
-                lines.append(self.inputName[index] + ' = ' + self.inputValue[index] + '\n')
+                lines.append(self.inputName[index] + ' = ' + self.changeBool(self.inputValue[index]) + '\n')
             else:
                 lines.append(self.inputName[index] + ' = None\n')
         lines.append('\n')
@@ -147,8 +154,8 @@ class ClassContent(object):
                 else:
                     value =  self.getParaValue(self.outputType[i])
                 para = output.split(' ')[-1].strip('*').strip('&')
-                lines.append(para + ' = ' + value + '\n')
-        path = self.workspace + '\\test_data\\focus_test\\' + self.TestName[:-8] + '\\'
+                lines.append(para + ' = ' + self.changeBool(value) + '\n')
+        path = self.workspace + '\\test_data\\focus_test\\' + self.className + '\\'
         if not os.path.exists(path):
             os.makedirs(path)
         file = path + self.className + self.functionName + self.TestName[:-8] + '.dat'
@@ -381,7 +388,7 @@ class ClassContent(object):
         file = self.workspace + '\\test_data\\media_driver_codec_ult.rc'
         with open(file, 'a') as fopen:
             resource = self.className + self.functionName + self.TestName[:-8]
-            fopen.write(resource + ' ' * max(1, (45 - len(resource))) + 'TEST_DATA     "focus_test/' + self.TestName[:-8] + '/' + self.className + self.functionName + self.TestName[:-8] + 'Input.dat"\n')
+            fopen.write(resource + ' ' * max(1, (45 - len(resource))) + 'TEST_DATA     "focus_test/' + self.TestName[:-8] + '/' + self.className + self.functionName + self.TestName[:-8] + '.dat"\n')
         print('generate ', file)
 
     def generateUltSrcsCmake(self):

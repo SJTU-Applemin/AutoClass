@@ -184,6 +184,8 @@ class MainWindow(QMainWindow):
             if self.sameInputParas():
                 self.Content.generateTestCaseCpp(True)
                 self.Content.generateDat()
+                self.Content.generateResourceH()
+                self.Content.generateMediaDriverCodecUlt()
             else:
                 msgBox = QMessageBox()
                 str = ','.join(blank)
