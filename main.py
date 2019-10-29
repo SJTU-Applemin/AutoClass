@@ -176,7 +176,7 @@ class MainWindow(QMainWindow):
         self.Content.functionName = self.ui.comboBoxFunction.currentText()
         self.Content.clear()
         self.readInfoFromUi()
-        existFile, existFunction, existCase = self.checkTestExist()
+        existFile, existClass, existFunction, existCase = self.checkTestExist()
         if existCase:   # same case exists, update input paras   
             self.Content.generateTestDataH(update = True)
             self.Content.generateDat()
@@ -192,13 +192,21 @@ class MainWindow(QMainWindow):
                 msgBox.setText('Same test case exists with different name and paras, update it First!')
                 msgBox.exec_()
                 return
+        elif existClass:
+            self.Content.generateTestDataH(True)
+            self.Content.generateDat()
+            self.Content.generateTestCaseCpp(True)
+            self.Content.generateTestH(update = True, sameClass = True)
+            self.Content.generateTestCpp(True)
+            self.Content.generateResourceH()
+            self.Content.generateMediaDriverCodecUlt()
         else:
             self.Content.generateTestDataH(existFile)
             self.Content.generateDat()
-            self.Content.generateTestCaseCpp()
-            self.Content.generateTestCaseH()
-            self.Content.generateTestH()
-            self.Content.generateTestCpp()
+            self.Content.generateTestCaseCpp(existFile)
+            self.Content.generateTestCaseH(existFile)
+            self.Content.generateTestH(update = existFile)
+            self.Content.generateTestCpp(existFile)
             self.Content.generateResourceH()
             self.Content.generateMediaDriverCodecUlt()
             self.Content.generateUltSrcsCmake()
@@ -206,18 +214,23 @@ class MainWindow(QMainWindow):
     def checkTestExist(self):
         testDataFile = os.path.join(self.Content.workspace, 'focus_test\\' + self.Content.sourceFile[:-2] + '_test_case.cpp')
         if not os.path.exists(testDataFile):
-            return False,False, False   # no such test exists
+            return False, False, False, False   # no such test exists
         with open(testDataFile, 'r') as fopen:
             lines = fopen.readlines()
+        className = self.Content.className + 'Test_'
         function = self.Content.className + 'Test_' + self.Content.functionName
         case = self.Content.className + 'Test_' + self.Content.functionName + '_' + self.Content.TestName[:-8]
         sameFunction = False
+        sameClass = False
         for line in lines:
             if line.find(case) >= 0:    # exist same class, function, caseName
-                return True, True, True
+                return True, True, True, True
             elif line.find(function) >= 0:  # exist same class function with different caseName
                 sameFunction = True
-        return True, sameFunction, False  # no such class, function exists
+                sameClass = True
+            elif line.find(className) >= 0:
+                sameClass = True
+        return True, sameClass, sameFunction, False  # no such class, function exists
 
         #for line_idx, line in enumerate(lines):
         #    if line.strip().startswith('struct _inputParameters'):

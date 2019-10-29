@@ -216,52 +216,59 @@ class ClassContent(object):
             fout.writelines(lines)
         print('generate ', file)
 
-    def generateTestCaseH(self):
+    def generateTestCaseH(self, update = False):
+        file = self.workspace + '\\focus_test\\' + self.sourceFile[:-2] + '_test_case.h'
         if self.parser.namespace:
             indent = 3
         else:
             indent = 0
-        lines = []
-        lines.append('#ifndef __ENCODE_HEVC_VDENC_PIPELINE_G12_FT_H__\n')
-        lines.append('#define __ENCODE_HEVC_VDENC_PIPELINE_G12_FT_H__\n')
-        lines.append('#include "gtest/gtest.h"\n')
-        lines.append('#include "gmock/gmock.h"\n')
-        lines.append('#include "' + self.sourceFile[:-2] + '_test.h"\n')
-        lines.append('using namespace testing;\n')
+        if not update:
+            lines = []
+            lines.append('#ifndef __ENCODE_HEVC_VDENC_PIPELINE_G12_FT_H__\n')
+            lines.append('#define __ENCODE_HEVC_VDENC_PIPELINE_G12_FT_H__\n')
+            lines.append('#include "gtest/gtest.h"\n')
+            lines.append('#include "gmock/gmock.h"\n')
+            lines.append('#include "' + self.sourceFile[:-2] + '_test.h"\n')
+            lines.append('using namespace testing;\n')
+            if self.parser.namespace:
+                lines.append('namespace ' + self.parser.namespace + '\n')
+                lines.append('{\n')
+                lines.append('}\n')
+            lines.append('#endif\n')
+        else:
+            with open(file, 'r') as fopen:
+                lines = fopen.readlines()
+        newLines = []
+        newLines.append(' ' * indent + 'class ' + self.className + 'FT : public testing::Test\n')
+        newLines.append(' ' * indent + '{\n')
+        newLines.append(' ' * indent + 'protected:\n')
+        indent += 3
+        newLines.append(' ' * indent + '//!\n')
+        newLines.append(' ' * indent + '//! \\brief   Initialization work before executing a unit test\n')
+        newLines.append(' ' * indent + '//!\n')
+        newLines.append(' ' * indent + 'virtual void SetUp()\n')
+        newLines.append(' ' * indent + '{\n')
+        indent += 3
+        newLines.append(' ' * indent + 'm_test = MOS_New(' + self.className + 'Test, nullptr, nullptr);\n')
+        indent -= 3
+        newLines.append(' ' * indent + '}\n')
+        newLines.append('\n')
+        newLines.append(' ' * indent + '//!\n')
+        newLines.append(' ' * indent + '//! \\brief   Uninitializaiton and exception handling after the unit test done\n')
+        newLines.append(' ' * indent + '//!\n')
+        newLines.append(' ' * indent + 'virtual void TearDown()\n')
+        newLines.append(' ' * indent + '{\n')
+        indent += 3
+        newLines.append(' ' * indent + 'MOS_Delete(m_test);\n')
+        indent -= 3
+        newLines.append(' ' * indent + '}\n')
+        newLines.append(' ' * indent + self.className + 'Test *m_test = nullptr;\n')
+        indent -= 3
+        newLines.append(' ' * indent + '};\n')
         if self.parser.namespace:
-            lines.append('namespace ' + self.parser.namespace + '\n')
-            lines.append('{\n')
-        lines.append(' ' * indent + 'class ' + self.className + 'FT : public testing::Test\n')
-        lines.append(' ' * indent + '{\n')
-        lines.append(' ' * indent + 'protected:\n')
-        indent += 3
-        lines.append(' ' * indent + '//!\n')
-        lines.append(' ' * indent + '//! \\brief   Initialization work before executing a unit test\n')
-        lines.append(' ' * indent + '//!\n')
-        lines.append(' ' * indent + 'virtual void SetUp()\n')
-        lines.append(' ' * indent + '{\n')
-        indent += 3
-        lines.append(' ' * indent + 'm_test = MOS_New(' + self.className + 'Test, nullptr, nullptr);\n')
-        indent -= 3
-        lines.append(' ' * indent + '}\n')
-        lines.append('\n')
-        lines.append(' ' * indent + '//!\n')
-        lines.append(' ' * indent + '//! \\brief   Uninitializaiton and exception handling after the unit test done\n')
-        lines.append(' ' * indent + '//!\n')
-        lines.append(' ' * indent + 'virtual void TearDown()\n')
-        lines.append(' ' * indent + '{\n')
-        indent += 3
-        lines.append(' ' * indent + 'MOS_Delete(m_test);\n')
-        indent -= 3
-        lines.append(' ' * indent + '}\n')
-        lines.append(' ' * indent + self.className + 'Test *m_test = nullptr;\n')
-        indent -= 3
-        lines.append(' ' * indent + '};\n')
-
-        if self.parser.namespace:
-            lines.append('}\n')
-        lines.append('#endif\n')
-        file = self.workspace + '\\focus_test\\' + self.sourceFile[:-2] + '_test_case.h'
+            lines = lines[:-2] + newLines + lines[-2:]
+        else:
+            lines = lines[:-1] + newLines + lines[-1:]
         with open(file,'w') as fout:
             fout.writelines(lines)
         print('generate ', file)
@@ -272,83 +279,100 @@ class ClassContent(object):
                 return i
         return -1
 
-    def generateTestH(self):
+    def generateTestH(self, update = False, sameClass = False):
+        file = self.workspace + '\\focus_test\\' + self.sourceFile[:-2] + '_test.h'
         if self.parser.namespace:
             indent = 3
         else:
             indent = 0
-        lines = []
-        lines.append('#include "' + self.sourceFile[:-2] + '_test_data.h"\n')
-        lines.append('#include "' + self.sourceFile + '"\n')
-        lines.append('\n')
-        if self.parser.namespace:
-            lines.append('namespace ' + self.parser.namespace +'\n')
-            lines.append('{\n')
-        lines.append(' ' * indent + 'class ' + self.className + 'Test : public ' + self.className + '\n')
-        lines.append(' ' * indent + '{\n')
-        lines.append(' ' * indent + 'public:\n')
-        indent += 3
-        lines.append(' ' * indent + self.className + 'Test(')
-        construct_id = self.getMethodIndex(self.className)
-        if construct_id < 0:
-            print('ERROR: no construct function')
+        if not update:
+            lines = []
+            lines.append('#include "' + self.sourceFile[:-2] + '_test_data.h"\n')
+            lines.append('#include "' + self.sourceFile + '"\n')
+            lines.append('\n')
+            if self.parser.namespace:
+                lines.append('namespace ' + self.parser.namespace +'\n')
+                lines.append('{\n')
+                lines.append('}\n')
         else:
-            construct = self.parser.methods_info[construct_id]
-            for i, para in enumerate(construct['parameters']):
-                lines.append(para['type'] + ' ' + para['name'])
-                if i != len(construct['parameters']) - 1:
-                    lines.append(' ,')
-            lines.append(') : ' + self.className + '(')
-            for i, para in enumerate(construct['parameters']):
-                lines.append(para['name'].lstrip('*').lstrip('&'))
-                if i != len(construct['parameters']) - 1:
-                    lines.append(' ,')
-            lines.append('){};\n')
-        #destruct_id = self.getMethodIndex('~' + self.className)
-        #if destruct_id < 0:
-        #    print('ERROR: no destruct function')
-        #else:
-        #    destruct = ''
-        #    for line in self.parser.methods[destruct_id]:
-        #        destruct = destruct + ' ' + line.strip()
-        #    destruct = destruct.strip()
-        #    if not destruct.endswith(';'):
-        #        destruct += ';'
-        #    lines.append(' ' * indent + destruct + '\n')
-        lines.append(' ' * indent + 'virtual ~' + self.className + 'Test(){};\n')
-        lines.append(' ' * indent + 'MOS_STATUS ' + self.functionName + 'Test(uint32_t inputRcId, std::string &testName);\n')
-        indent -= 3
-        lines.append(' ' * indent + '};\n')
-        if self.parser.namespace:
-            lines.append('}\n')
-        file = self.workspace + '\\focus_test\\' + self.sourceFile[:-2] + '_test.h'
+            with open(file, 'r') as fopen:
+                lines = fopen.readlines()
+        if sameClass:
+            insertLine = ' ' * (indent + 3) + 'MOS_STATUS ' + self.functionName + 'Test(uint32_t inputRcId, std::string &testName);\n'
+            for idx, line in enumerate(lines):
+                if line.find('class ' + self.className + 'Test : ') >= 0:
+                    classIdx = idx
+                    break
+            for idx in range(classIdx, len(lines)):
+                if lines[idx].strip() == '};':
+                    insertIdx = idx
+                    break
+            lines.insert(insertIdx, insertLine)
+        else:
+            insertLines = []
+            insertLines.append(' ' * indent + 'class ' + self.className + 'Test : public ' + self.className + '\n')
+            insertLines.append(' ' * indent + '{\n')
+            insertLines.append(' ' * indent + 'public:\n')
+            indent += 3
+            construct_id = self.getMethodIndex(self.className)
+            if construct_id < 0:
+                print('ERROR: no construct function')
+            else:
+                insertLines.append(' ' * indent + self.className + 'Test(')
+                construct = self.parser.methods_info[construct_id]
+                for i, para in enumerate(construct['parameters']):
+                    insertLines.append(para['type'] + ' ' + para['name'])
+                    if i != len(construct['parameters']) - 1:
+                        insertLines.append(' ,')
+                insertLines.append(') : ' + self.className + '(')
+                for i, para in enumerate(construct['parameters']):
+                    insertLines.append(para['name'].lstrip('*').lstrip('&'))
+                    if i != len(construct['parameters']) - 1:
+                        insertLines.append(' ,')
+                insertLines.append('){};\n')
+            insertLines.append(' ' * indent + 'virtual ~' + self.className + 'Test(){};\n')
+            insertLines.append(' ' * indent + 'MOS_STATUS ' + self.functionName + 'Test(uint32_t inputRcId, std::string &testName);\n')
+            indent -= 3
+            insertLines.append(' ' * indent + '};\n')
+            if self.parser.namespace:
+                lines = lines[:-1] + insertLines + lines[-1:]
+            else:
+                lines.extend(insertLines)
         with open(file,'w') as fout:
             fout.writelines(lines)
         print('generate ', file)
 
-    def generateTestCpp(self):
+    def generateTestCpp(self, update = False):
+        file = self.workspace + '\\focus_test\\' + self.sourceFile[:-2] + '_test.cpp'
         if self.parser.namespace:
             indent = 3
         else:
             indent = 0
-        lines = []
-        lines.append('#include "' + self.sourceFile[:-2] + '_test.h"\n')
-        if self.parser.namespace:
-            lines.append('namespace ' + self.parser.namespace + '\n')
-            lines.append('{\n')
-        lines.append(' ' * indent + 'MOS_STATUS ' + self.className + 'Test::' + self.functionName + 'Test(uint32_t inputRcId, std::string &testName)\n')
-        lines.append(' ' * indent + '{\n')
+        if not update:
+            lines = []
+            lines.append('#include "' + self.sourceFile[:-2] + '_test.h"\n')
+            if self.parser.namespace:
+                lines.append('namespace ' + self.parser.namespace + '\n')
+                lines.append('{\n')
+                lines.append('}  // namespace encode\n')
+        else:
+            with open(file, 'r') as fopen:
+                lines = fopen.readlines()
+        insertLines = []
+        insertLines.append(' ' * indent + 'MOS_STATUS ' + self.className + 'Test::' + self.functionName + 'Test(uint32_t inputRcId, std::string &testName)\n')
+        insertLines.append(' ' * indent + '{\n')
         indent += 3
-        lines.append(' ' * indent + self.className + '_' + self.functionName + '_TestData testData(inputRcId, testName);\n')
-        lines.append(' ' * indent + 'testData.SetInput();\n')
-        lines.append(' ' * indent + 'testData.SetOutputReference();\n')
-        lines.append(' ' * indent + '//EXPECT_EQ(' + self.functionName + '(), testData.m_returnValue);\n')
-        lines.append(' ' * indent + 'return MOS_STATUS_SUCCESS;\n')
+        insertLines.append(' ' * indent + self.className + '_' + self.functionName + '_TestData testData(inputRcId, testName);\n')
+        insertLines.append(' ' * indent + 'testData.SetInput();\n')
+        insertLines.append(' ' * indent + 'testData.SetOutputReference();\n')
+        insertLines.append(' ' * indent + '//EXPECT_EQ(' + self.functionName + '(), testData.m_returnValue);\n')
+        insertLines.append(' ' * indent + 'return MOS_STATUS_SUCCESS;\n')
         indent -= 3
-        lines.append(' ' * indent + '}\n')
+        insertLines.append(' ' * indent + '}\n')
         if self.parser.namespace:
-            lines.append('}  // namespace encode\n')
-        file = self.workspace + '\\focus_test\\' + self.sourceFile[:-2] + '_test.cpp'
+            lines = lines[:-1] + insertLines + lines[-1:]
+        else:
+            lines.extend(insertLines)
         with open(file,'w') as fout:
             fout.writelines(lines)
         print('generate ', file)
