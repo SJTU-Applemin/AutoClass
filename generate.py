@@ -84,10 +84,6 @@ class ClassContent(object):
         idx = 0
         while idx < len(separatePath):
             mid = separatePath[idx]
-            if mid == 'enc':
-                separatePath[idx] = 'encode'
-            if mid == 'dec':
-                separatePath[idx] = 'decode'
             if mid == 'hal':
                 del separatePath[idx]
                 idx -= 1
