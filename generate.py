@@ -124,8 +124,9 @@ class ClassContent(object):
             indent = 0
         if not update:
             lines = []
-            lines.append('#ifndef __HEVCVDENCPIPELINETESTDATA_H__\n')
-            lines.append('#define __HEVCVDENCPIPELINETESTDATA_H__\n')
+            define = '__' + (self.sourceFile[:-2] + '_test_data_h').upper() + '__'
+            lines.append('#ifndef ' + define + '\n')
+            lines.append('#define ' + define + '\n')
             lines.append('#include "read_test_data.h"\n')
             if self.parser.namespace:
                 lines.append('namespace ' + self.parser.namespace + '\n')
@@ -301,8 +302,9 @@ class ClassContent(object):
             indent = 0
         if not update:
             lines = []
-            lines.append('#ifndef __ENCODE_HEVC_VDENC_PIPELINE_G12_FT_H__\n')
-            lines.append('#define __ENCODE_HEVC_VDENC_PIPELINE_G12_FT_H__\n')
+            define = '__' + (self.sourceFile[:-2] + '_test_case_h').upper() + '__'
+            lines.append('#ifndef ' + define + '\n')
+            lines.append('#define ' + define + '\n')
             lines.append('#include "gtest/gtest.h"\n')
             lines.append('#include "gmock/gmock.h"\n')
             lines.append('#include "' + self.sourceFile[:-2] + '_test.h"\n')
@@ -456,7 +458,7 @@ class ClassContent(object):
 
     def generateResourceH(self):
         file = os.path.join(self.workspace, 'resource.h')
-        resource = self.className + self.functionName + self.TestName[:-8]
+        resource = self.className + '_' + self.functionName + '_' + self.TestName[:-8]
         focus_start_index = -1
         with open(file, 'r') as fopen:
             lines = fopen.readlines()
@@ -488,7 +490,7 @@ class ClassContent(object):
     def generateMediaDriverCodecUlt(self):
         file = os.path.join(self.workspace, 'media_driver_codec_ult.rc')
         with open(file, 'a') as fopen:
-            resource = self.className + self.functionName + self.TestName[:-8]
+            resource = self.className + '_' + self.functionName + '_' + self.TestName[:-8]
             fopen.write(resource + ' ' * max(1, (45 - len(resource))) + 'TEST_DATA     "focus_test/' + self.className + '/' + self.className + self.functionName + self.TestName[:-8] + '.dat"\n')
         print('generate ', file)
 
