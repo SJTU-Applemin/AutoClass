@@ -23,7 +23,6 @@ class ClassContent(object):
         self.returnValue = ''
         self.outputName = []
 
-
     def clear(self):
         self.TestName = ''
         self.inputPara = []

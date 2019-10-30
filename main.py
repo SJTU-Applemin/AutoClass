@@ -52,6 +52,7 @@ class MainWindow(QMainWindow):
         self.ui.lineEditOutputPara.editingFinished.connect(partial(self.fillLine,'OutputPara'))
         self.ui.lineEditFile.editingFinished.connect(self.readHFile)
 
+
     def setReturnValueList(self):
         file = self.mediaPath + 'media\\media_driver\\agnostic\\common\\os\\mos_defs.h'
         mosParser = read_file.read_h_file(file)
@@ -181,12 +182,14 @@ class MainWindow(QMainWindow):
         if existCase:   # same case exists, update input paras   
             self.Content.generateTestDataH(update = True)
             self.Content.generateDat()
+            self.ui.textBrowser.setPlainText('Successfully update new case!')
         elif existFunction:   # same test with different case name, update input values
             if self.sameInputParas():
                 self.Content.generateTestCaseCpp(True)
                 self.Content.generateDat()
                 self.Content.generateResourceH()
                 self.Content.generateMediaDriverCodecUlt()
+                self.ui.textBrowser.setPlainText('Successfully generate new case!')
             else:
                 msgBox = QMessageBox()
                 str = ','.join(blank)
@@ -201,6 +204,7 @@ class MainWindow(QMainWindow):
             self.Content.generateTestCpp(True)
             self.Content.generateResourceH()
             self.Content.generateMediaDriverCodecUlt()
+            self.ui.textBrowser.setPlainText('Successfully generate new case!')
         else:
             self.Content.generateTestDataH(existFile)
             self.Content.generateDat()
@@ -210,6 +214,7 @@ class MainWindow(QMainWindow):
             self.Content.generateTestCpp(existFile)
             self.Content.generateResourceH()
             self.Content.generateMediaDriverCodecUlt()
+            self.ui.textBrowser.setPlainText('Successfully generate new case!')
 
     def checkTestExist(self):
         testDataFile = os.path.join(self.Content.codePath, self.Content.sourceFile[:-2] + '_test_case.cpp')
