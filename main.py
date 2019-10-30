@@ -104,7 +104,7 @@ class MainWindow(QMainWindow):
 
     def readHFile(self):
         self.clearComboboxSelect()
-        fileName = self.ui.lineEditFile.text().strip()
+        fileName = self.ui.lineEditFile.text().strip().replace('/','\\')
         if not fileName.strip():
             return
         if not os.path.exists(fileName):
@@ -118,9 +118,9 @@ class MainWindow(QMainWindow):
         self.Content.parser = self.parser
         self.Content.sourceFile = os.path.basename(fileName)
         self.mediaPath = fileName[:fileName.find('media')]
-        self.Content.workspace = os.path.join(fileName[:fileName.find('media')], 'media\\media_embargo\\media_driver_next\\ult\\windows\\codec\\test')
         self.fillClassSelect()
         self.setReturnValueList()
+        
 
     @Slot()
     def fillLine(self, name, flag = True):
@@ -176,6 +176,7 @@ class MainWindow(QMainWindow):
         self.Content.functionName = self.ui.comboBoxFunction.currentText()
         self.Content.clear()
         self.readInfoFromUi()
+        self.Content.getFilePath(self.ui.lineEditFile.text().replace('/', '\\'))
         existFile, existClass, existFunction, existCase = self.checkTestExist()
         if existCase:   # same case exists, update input paras   
             self.Content.generateTestDataH(update = True)
@@ -209,11 +210,9 @@ class MainWindow(QMainWindow):
             self.Content.generateTestCpp(existFile)
             self.Content.generateResourceH()
             self.Content.generateMediaDriverCodecUlt()
-            if not existFile:
-                self.Content.generateUltSrcsCmake()
 
     def checkTestExist(self):
-        testDataFile = os.path.join(self.Content.workspace, 'focus_test\\' + self.Content.sourceFile[:-2] + '_test_case.cpp')
+        testDataFile = os.path.join(self.Content.codePath, self.Content.sourceFile[:-2] + '_test_case.cpp')
         if not os.path.exists(testDataFile):
             return False, False, False, False   # no such test exists
         with open(testDataFile, 'r') as fopen:
@@ -232,25 +231,10 @@ class MainWindow(QMainWindow):
             elif line.find(className) >= 0:
                 sameClass = True
         return True, sameClass, sameFunction, False  # no such class, function exists
-
-        #for line_idx, line in enumerate(lines):
-        #    if line.strip().startswith('struct _inputParameters'):
-        #        line_idx = line_idx + 2
-        #        break
-        #inputPara = []
-        #while lines[line_idx].find('}') < 0:
-        #    line = lines[line_idx].strip().strip(';')
-        #    paras = line.split()
-        #    inputPara.append([paras[0], paras[-1]])
-        #if len(inputPara) != len(self.Content.inputPara):
-        #    return False
-        #for i in range(len(inputPara)):
-        #    if inputPara[i][0] != self.Content.inputType or inputPara[i][1] != self.Content.inputName:
-        #        return False
         
 
     def sameInputParas(self):
-        testDataFile = os.path.join(self.Content.workspace, 'focus_test\\' + self.Content.sourceFile[:-2] + '_test_data.h')
+        testDataFile = os.path.join(self.Content.codePath, self.Content.sourceFile[:-2] + '_test_data.h')
         with open(testDataFile, 'r') as fopen:
             lines = fopen.readlines()
         for line_idx, line in enumerate(lines):

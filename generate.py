@@ -34,12 +34,89 @@ class ClassContent(object):
         self.outputName = []
         self.outputType = []
 
+    def generateCmake(self, type, path, source = ''):
+        file = os.path.join(path, 'ult_srcs.cmake')
+        if type == '':
+            lines = []
+            lines.extend(self.getHeaders())
+            lines.append('ult_add_curr_to_include_path()\n')
+        elif type == 'code':
+            lines = []
+            lines.extend(self.getHeaders())
+            lines.append('set(TMP_HEADERS_\n')
+            lines.append('    ${CMAKE_CURRENT_LIST_DIR}/' + self.sourceFile[:-2] + '_test.h' + '\n')
+            lines.append('    ${CMAKE_CURRENT_LIST_DIR}/' + self.sourceFile[:-2] + '_test_case.h' + '\n')
+            lines.append('    ${CMAKE_CURRENT_LIST_DIR}/' + self.sourceFile[:-2] + '_test_data.h' + '\n')
+            lines.append(')\n')
+            lines.append('\n')
+            lines.append('set(TMP_SOURCES_\n')
+            lines.append('    ${CMAKE_CURRENT_LIST_DIR}/' + self.sourceFile[:-2] + '_test.cpp' + '\n')
+            lines.append('    ${CMAKE_CURRENT_LIST_DIR}/' + self.sourceFile[:-2] + '_test_case.cpp' + '\n')
+            lines.append(')\n')
+            lines.append('\n')
+            lines.append('set(ULT_LIB_HEADERS_ ${ULT_LIB_HEADERS_} ${TMP_HEADERS_})\n')
+            lines.append('set(ULT_LIB_SOURCES_ ${ULT_LIB_SOURCES_} ${TMP_SOURCES_})\n')
+            lines.append('\n')
+            lines.append('source_group("' + source + '" FILES ${TMP_HEADERS_} ${TMP_SOURCES_})\n')
+            lines.append('\n')
+            lines.append('ult_add_curr_to_include_path()\n')
+        else:
+            with open(file, 'r') as fopen:
+                lines = fopen.readlines()
+            newLines = []
+            newLines.append('ult_include_subdirectory(' + type + ')\n')
+            for idx in reversed(range(len(lines))):
+                if lines[idx].find('ult_add_curr_to_include_path()') >= 0:
+                    insertIdx = idx
+                    break
+            lines = lines[:insertIdx] + newLines + lines[insertIdx:]
+        with open(file, 'w') as fopen:
+            fopen.writelines(lines)
+
+    # generate directory and cmake
+    def getFilePath(self, path):
+        path = path.strip()
+        ultPath = path[:path.find('media')] + 'media\\media_embargo\\media_driver_next\\ult\\'
+        separatePath = path.split('\\')
+        separatePath = separatePath[separatePath.index('media_driver_next') + 1: ]
+        del separatePath[-1]
+        separatePath.insert(1, 'test')
+        separatePath.append('focus_test')
+        idx = 0
+        while idx < len(separatePath):
+            mid = separatePath[idx]
+            if mid == 'enc':
+                separatePath[idx] = 'encode'
+            if mid == 'dec':
+                separatePath[idx] = 'decode'
+            if mid == 'hal':
+                del separatePath[idx]
+                idx -= 1
+            idx += 1
+        self.workspace = path[:path.find('media')] + 'media\\media_embargo\\media_driver_next\\ult\\windows\\test\\codec\\test_data'
+        ultPath = ultPath + '\\'.join(separatePath[:4])
+        midPath = separatePath[4:]
+        while midPath:
+            if not os.path.exists(ultPath + '\\ult_srcs.cmake'):
+                self.generateCmake('', ultPath)
+            if not os.path.exists(ultPath + '\\' + midPath[0]):
+                self.generateCmake(midPath[0], ultPath)
+                os.mkdir(ultPath + '\\' + midPath[0])
+            ultPath = ultPath + '\\' + midPath[0]
+            del midPath[0]
+        source = separatePath[:3]
+        if 'encode' in separatePath:
+            source.append('encode')
+        elif 'decode' in separatePath:
+            source.append('decode')
+        else:
+            source.append(separatePath[4])
+        self.generateCmake('code', ultPath, '\\'.join(source))
+        self.codePath = ultPath
+            
     # append if exists
     def generateTestDataH(self, update = False):
-        path = self.workspace + '\\focus_test\\'
-        if not os.path.exists(path):
-            os.makedirs(path)
-        file = path + self.sourceFile[:-2] + '_test_data.h'
+        file = os.path.join(self.codePath, self.sourceFile[:-2] + '_test_data.h')
         removeHead, removeTail = -1, -1
         if self.parser.namespace:
             indent = 3
@@ -155,10 +232,10 @@ class ClassContent(object):
                     value =  self.getParaValue(self.outputType[i])
                 para = output.split(' ')[-1].strip('*').strip('&')
                 lines.append(para + ' = ' + self.changeBool(value) + '\n')
-        path = self.workspace + '\\test_data\\focus_test\\' + self.className + '\\'
+        path = self.workspace + '\\focus_test\\' + self.className + '\\'
         if not os.path.exists(path):
             os.makedirs(path)
-        file = path + self.className + self.functionName + self.TestName[:-8] + '.dat'
+        file = os.path.join(path, self.className + self.functionName + self.TestName[:-8] + '.dat')
         with open(file,'w') as fout:
             fout.writelines(lines)
         print('generate ', file)
@@ -186,7 +263,7 @@ class ClassContent(object):
 
 
     def generateTestCaseCpp(self, update = False):
-        file = self.workspace + '\\focus_test\\' + self.sourceFile[:-2] + '_test_case.cpp'
+        file = os.path.join(self.codePath, self.sourceFile[:-2] + '_test_case.cpp')
         if self.parser.namespace:
             indent = 3
         else:
@@ -217,7 +294,7 @@ class ClassContent(object):
         print('generate ', file)
 
     def generateTestCaseH(self, update = False):
-        file = self.workspace + '\\focus_test\\' + self.sourceFile[:-2] + '_test_case.h'
+        file = os.path.join(self.codePath, self.sourceFile[:-2] + '_test_case.h')
         if self.parser.namespace:
             indent = 3
         else:
@@ -280,7 +357,7 @@ class ClassContent(object):
         return -1
 
     def generateTestH(self, update = False, sameClass = False):
-        file = self.workspace + '\\focus_test\\' + self.sourceFile[:-2] + '_test.h'
+        file = os.path.join(self.codePath, self.sourceFile[:-2] + '_test.h')
         if self.parser.namespace:
             indent = 3
         else:
@@ -343,7 +420,7 @@ class ClassContent(object):
         print('generate ', file)
 
     def generateTestCpp(self, update = False):
-        file = self.workspace + '\\focus_test\\' + self.sourceFile[:-2] + '_test.cpp'
+        file = os.path.join(self.codePath, self.sourceFile[:-2] + '_test.cpp')
         if self.parser.namespace:
             indent = 3
         else:
@@ -378,7 +455,7 @@ class ClassContent(object):
         print('generate ', file)
 
     def generateResourceH(self):
-        file = self.workspace + '\\test_data\\resource.h'
+        file = os.path.join(self.workspace, 'resource.h')
         resource = self.className + self.functionName + self.TestName[:-8]
         focus_start_index = -1
         with open(file, 'r') as fopen:
@@ -409,38 +486,36 @@ class ClassContent(object):
         print('generate ', file)
 
     def generateMediaDriverCodecUlt(self):
-        file = self.workspace + '\\test_data\\media_driver_codec_ult.rc'
+        file = os.path.join(self.workspace, 'media_driver_codec_ult.rc')
         with open(file, 'a') as fopen:
             resource = self.className + self.functionName + self.TestName[:-8]
             fopen.write(resource + ' ' * max(1, (45 - len(resource))) + 'TEST_DATA     "focus_test/' + self.className + '/' + self.className + self.functionName + self.TestName[:-8] + '.dat"\n')
         print('generate ', file)
 
-    def generateUltSrcsCmake(self):
-        file = self.workspace + '\\ult_srcs.cmake'
-        with open(file, 'r') as fopen:
-            lines = fopen.readlines()
-        for line_idx, line in enumerate(lines):
-            if line.strip().startswith('set(TMP_SOURCES_'):
-                for i in range(line_idx + 1, len(lines)):
-                    if lines[i].strip().startswith(')'):
-                        lines.insert(i, '    ${CMAKE_CURRENT_LIST_DIR}/focus_test/' + self.sourceFile[:-2] + '_test_case.cpp\n')
-                        lines.insert(i + 1, '    ${CMAKE_CURRENT_LIST_DIR}/focus_test/' + self.sourceFile[:-2] + '_test.cpp\n')
-                        break
-                break
-        for line_idx, line in enumerate(lines):
-            if line.strip().startswith('set(TMP_HEADERS_'):
-                for i in range(line_idx + 1, len(lines)):
-                    if lines[i].strip().startswith(')'):
-                        lines.insert(i, '    ${CMAKE_CURRENT_LIST_DIR}/focus_test/' + self.sourceFile[:-2] + '_test_case.h\n')
-                        lines.insert(i + 1, '    ${CMAKE_CURRENT_LIST_DIR}/focus_test/' + self.sourceFile[:-2] + '_test.h\n')
-                        lines.insert(i + 2, '    ${CMAKE_CURRENT_LIST_DIR}/focus_test/' + self.sourceFile[:-2] + '_test_data.h\n')
-                        break
-                break
-        with open(file, 'w') as fopen:
-            fopen.writelines(lines)
-        print('generate ', file)
 
-
+    def getHeaders(self):
+        lines = []
+        lines.append('# Copyright (c) 2018 - 2019, Intel Corporation\n')
+        lines.append('#\n')
+        lines.append('# Permission is hereby granted, free of charge, to any person obtaining a\n')
+        lines.append('# copy of this software and associated documentation files (the "Software"),\n')
+        lines.append('# to deal in the Software without restriction, including without limitation\n')
+        lines.append('# the rights to use, copy, modify, merge, publish, distribute, sublicense,\n')
+        lines.append('# and/or sell copies of the Software, and to permit persons to whom the\n')
+        lines.append('# Software is furnished to do so, subject to the following conditions:\n')
+        lines.append('#\n')
+        lines.append('# The above copyright notice and this permission notice shall be included\n')
+        lines.append('# in all copies or substantial portions of the Software.\n')
+        lines.append('#\n')
+        lines.append('# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS\n')
+        lines.append('# OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n')
+        lines.append('# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL\n')
+        lines.append('# THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR\n')
+        lines.append('# OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,\n')
+        lines.append('# ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR\n')
+        lines.append('# OTHER DEALINGS IN THE SOFTWARE.\n')
+        lines.append('\n')
+        return lines
 
 
 
