@@ -89,6 +89,8 @@ class ClassContent(object):
                 idx -= 1
             idx += 1
         self.workspace = path[:path.find('media')] + 'media\\media_embargo\\media_driver_next\\ult\\windows\\test\\' + separatePath[3] + '\\test_data'
+        if not os.path.exists(self.workspace):
+            os.makedirs(self.workspace)
         ultPath = ultPath + '\\'.join(separatePath[:4])
         midPath = separatePath[4:]
         if not os.path.exists(ultPath):
@@ -233,7 +235,7 @@ class ClassContent(object):
         path = self.workspace + '\\focus_test\\' + self.className + '\\'
         if not os.path.exists(path):
             os.makedirs(path)
-        file = os.path.join(path, self.className + self.functionName + self.TestName[:-8] + '.dat')
+        file = os.path.join(path, self.className + '_' + self.functionName + '_' + self.TestName[:-8] + '.dat')
         with open(file,'w') as fout:
             fout.writelines(lines)
         print('generate ', file)
@@ -456,7 +458,8 @@ class ClassContent(object):
     def generateResourceH(self):
         file = os.path.join(self.workspace, 'resource.h')
         if not os.path.exists(file):
-            return 'Resource.h not found!'
+            with open(file, 'w') as fopen:
+                fopen.write('#include "resource.h"\n')
         resource = self.className + '_' + self.functionName + '_' + self.TestName[:-8]
         focus_start_index = -1
         with open(file, 'r') as fopen:
@@ -489,13 +492,10 @@ class ClassContent(object):
 
     def generateMediaDriverCodecUlt(self):
         file = os.path.join(self.workspace, 'media_driver_codec_ult.rc')
-        if not os.path.exists(file):
-            return 'media_driver_codec_ult.rc not found!'
         with open(file, 'a') as fopen:
             resource = self.className + '_' + self.functionName + '_' + self.TestName[:-8]
-            fopen.write(resource + ' ' * max(1, (45 - len(resource))) + 'TEST_DATA     "focus_test/' + self.className + '/' + self.className + self.functionName + self.TestName[:-8] + '.dat"\n')
+            fopen.write(resource + ' ' * max(1, (45 - len(resource))) + 'TEST_DATA     "focus_test/' + self.className + '/' + self.className + '_' + self.functionName + '_' + self.TestName[:-8] + '.dat"\n')
         print('generate ', file)
-        return ''
 
 
     def getHeaders(self):

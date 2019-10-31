@@ -212,12 +212,9 @@ class MainWindow(QMainWindow):
             self.Content.generateTestCaseH(existFile)
             self.Content.generateTestH(update = existFile)
             self.Content.generateTestCpp(existFile)
-            error1 = self.Content.generateResourceH()
-            error2 = self.Content.generateMediaDriverCodecUlt()
-            if error1  or error2 :
-                self.ui.textBrowser.setPlainText(error1 + '\n' + error2)
-            else:
-                self.ui.textBrowser.setPlainText('Successfully generate new case!')
+            self.Content.generateResourceH()
+            self.Content.generateMediaDriverCodecUlt()
+            self.ui.textBrowser.setPlainText('Successfully generate new case!')
 
     def checkTestExist(self):
         testDataFile = os.path.join(self.Content.codePath, self.Content.sourceFile[:-2] + '_test_case.cpp')
