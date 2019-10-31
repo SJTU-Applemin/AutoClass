@@ -177,7 +177,12 @@ class MainWindow(QMainWindow):
         self.Content.functionName = self.ui.comboBoxFunction.currentText()
         self.Content.clear()
         self.readInfoFromUi()
-        self.Content.getFilePath(self.ui.lineEditFile.text().replace('/', '\\'))
+        error = self.Content.getFilePath(self.ui.lineEditFile.text().replace('/', '\\'))
+        if error:
+            msgBox = QMessageBox()
+            msgBox.setText(error)
+            msgBox.exec_()
+            return
         existFile, existClass, existFunction, existCase = self.checkTestExist()
         if existCase:   # same case exists, update input paras   
             self.Content.generateTestDataH(update = True)

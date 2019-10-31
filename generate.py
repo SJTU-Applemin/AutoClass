@@ -22,6 +22,7 @@ class ClassContent(object):
         self.FTindex = ''
         self.returnValue = ''
         self.outputName = []
+        self.tag = ''
 
     def clear(self):
         self.TestName = ''
@@ -59,6 +60,30 @@ class ClassContent(object):
             lines.append('source_group("' + source + '" FILES ${TMP_HEADERS_} ${TMP_SOURCES_})\n')
             lines.append('\n')
             lines.append('ult_add_curr_to_include_path()\n')
+        elif type == 'resource':
+            lines = []
+            lines.extend(self.getHeaders())
+            lines.append('set(TMP_RESOURCES_\n')
+            lines.append('    ${CMAKE_CURRENT_LIST_DIR}/media_driver_codec_ult.rc\n')
+            lines.append('    )\n')
+            lines.append('\n')
+            lines.append('set(ULT_RESOURCES_\n')
+            lines.append('    ${ULT_RESOURCES_}\n')
+            lines.append('    ${TMP_RESOURCES_}\n')
+            lines.append(')\n')
+            lines.append('\n')
+            lines.append('set(TMP_HEADERS_\n')
+            lines.append('    ${CMAKE_CURRENT_LIST_DIR}/resource.h\n')
+            lines.append(')\n')
+            lines.append('\n')
+            lines.append('set(ULT_LIB_HEADERS_\n')
+            lines.append('    ${ULT_LIB_HEADERS_}\n')
+            lines.append('    ${TMP_HEADERS_}\n')
+            lines.append(')\n')
+            lines.append('\n')
+            lines.append('source_group("Resources" FILES ${TMP_RESOURCES_})\n')
+            lines.append('source_group("Sources" FILES ${TMP_HEADERS_})\n')
+            lines.append('ult_add_curr_to_include_path()\n')
         else:
             with open(file, 'r') as fopen:
                 lines = fopen.readlines()
@@ -88,9 +113,31 @@ class ClassContent(object):
                 del separatePath[idx]
                 idx -= 1
             idx += 1
-        self.workspace = path[:path.find('media')] + 'media\\media_embargo\\media_driver_next\\ult\\windows\\test\\' + separatePath[3] + '\\test_data'
+        if 'codec' in separatePath:
+            self.tag = 'codec'
+        elif 'vp' in separatePath:
+            self.tag = 'vp'
+        elif 'cp' in separatePath:
+            self.tag = 'cp'
+            return 'cp not supported currently!'
+        elif 'os' in separatePath:
+            self.tag = 'os'
+        else:
+            self.tag = 'shared'
+            return 'shared not supported currently!'
+        self.workspace = path[:path.find('media')] + 'media\\media_embargo\\media_driver_next\\ult\\windows\\test\\' + self.tag + '\\test_data'
         if not os.path.exists(self.workspace):
             os.makedirs(self.workspace)
+            cmakeFile = path[:path.find('media')] + 'media\\media_embargo\\media_driver_next\\ult\\windows\\test\\' + self.tag + '\\ult_srcs.cmake'
+            with open(cmakeFile, 'r') as fopen:
+                lines = fopen.readlines()
+            for idx, line in enumerate(lines):
+                if line.find('ult_include_subdirectory') >= 0:
+                    lines.insert(idx, '    ult_include_subdirectory(test_data)\n')
+                    break
+            with open(cmakeFile, 'w') as fopen:
+                fopen.writelines(lines)
+            self.generateCmake('resource', self.workspace)
         ultPath = ultPath + '\\'.join(separatePath[:4])
         midPath = separatePath[4:]
         if not os.path.exists(ultPath):
@@ -112,6 +159,7 @@ class ClassContent(object):
             source.append(separatePath[4])
         self.generateCmake('code', ultPath, '\\\\'.join(source))
         self.codePath = ultPath
+        return ''
             
     # append if exists
     def generateTestDataH(self, update = False):
@@ -271,7 +319,8 @@ class ClassContent(object):
         if not update:
             lines = []
             lines.append('#include "' + self.sourceFile[:-2] + '_test_case.h"\n')
-            lines.append('#include "test_data\\resource.h"\n')
+            resourcePath = '..\\..\\windows\\test\\' + self.tag + '\\test_data\\resource.h'
+            lines.append('#include "' + resourcePath + '"\n')
             if self.parser.namespace:
                 lines.append('namespace ' + self.parser.namespace +'\n')
                 lines.append('{\n')
@@ -284,7 +333,7 @@ class ClassContent(object):
         newLines.append(' ' * indent + '{\n')
         indent += 3
         newLines.append(' ' * indent + 'std::string testName = ::testing::UnitTest::GetInstance()->current_test_info()->name();\n')
-        newLines.append(' ' * indent + 'EXPECT_EQ(m_test->' + self.functionName + 'Test(' + self.className + self.functionName + self.TestName[:-8] + ', testName), 0);\n')
+        newLines.append(' ' * indent + 'EXPECT_EQ(m_test->' + self.functionName + 'Test(' + self.className + '_' + self.functionName + '_' + self.TestName[:-8] + ', testName), 0);\n')
         indent -= 3
         newLines.append(' ' * indent + '}\n')
         
@@ -457,34 +506,20 @@ class ClassContent(object):
 
     def generateResourceH(self):
         file = os.path.join(self.workspace, 'resource.h')
-        if not os.path.exists(file):
-            with open(file, 'w') as fopen:
-                fopen.write('#include "resource.h"\n')
         resource = self.className + '_' + self.functionName + '_' + self.TestName[:-8]
-        focus_start_index = -1
-        with open(file, 'r') as fopen:
-            lines = fopen.readlines()
-        for line_idx, line in enumerate(lines):
-            if line.find('Focus Test') >= 0:
-                focus_start_index = line_idx
-                break
-        if focus_start_index < 0:
-            lines.append('\n')
-            lines.append('// Focus Test\n')
-            lines.append('#define ' + resource + ' ' * max(1, (47-len(resource))) + '300\n')
-            self.FTindex = 1
-        
+        insertLine = '#define ' + resource + ' ' * max(1, 47-len(resource))
+        if os.path.exists(file):
+            with open(file, 'r') as fopen:
+                lines = fopen.readlines()
+            for i in reversed(range(len(lines))):
+                line_str = lines[i].strip()
+                if line_str:
+                    insertLine += str(int(line_str.split()[-1]) + 1) + '\n'
+                    break
         else:
-            insert = False
-            for i in range(focus_start_index+1, len(lines)):
-                if not line.strip():
-                    self.FTindex = str(i - focus_start_index)
-                    lines.append('#define ' + resource + ' ' * max(1, (47-len(resource)))  + str(299 + i - focus_start_index) + '\n')
-                    insert = True
-                    return
-            if not insert:
-                self.FTindex = str(len(lines) - focus_start_index)
-                lines.append('#define ' + resource + ' ' * max(1, (47-len(resource))) + str(299 + len(lines) - focus_start_index) + '\n')
+            insertLine += '100\n'
+            lines = []
+        lines.append(insertLine)
         with open(file, 'w') as fopen:
             fopen.writelines(lines)
         print('generate ', file)
@@ -492,6 +527,9 @@ class ClassContent(object):
 
     def generateMediaDriverCodecUlt(self):
         file = os.path.join(self.workspace, 'media_driver_codec_ult.rc')
+        if not os.path.exists(file):
+            with open(file, 'w') as fopen:
+                fopen.write('#include "resource.h"\n')
         with open(file, 'a') as fopen:
             resource = self.className + '_' + self.functionName + '_' + self.TestName[:-8]
             fopen.write(resource + ' ' * max(1, (45 - len(resource))) + 'TEST_DATA     "focus_test/' + self.className + '/' + self.className + '_' + self.functionName + '_' + self.TestName[:-8] + '.dat"\n')
