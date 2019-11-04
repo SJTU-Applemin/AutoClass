@@ -190,7 +190,7 @@ class MainWindow(QMainWindow):
             self.ui.textBrowser.setPlainText('Successfully update new case!')
         elif existFunction:   # same test with different case name, update input values
             if self.sameInputParas():
-                self.Content.generateTestCaseCpp(True)
+                self.Content.generateTestCaseCpp(update = True, addCase = True)
                 self.Content.generateDat()
                 self.Content.generateResourceH()
                 self.Content.generateMediaDriverCodecUlt()
@@ -284,6 +284,7 @@ class MainWindow(QMainWindow):
 
 
     def readInfoFromUi(self):
+        self.Content.caseName = self.ui.lineEditTestName.text().strip()
         self.Content.TestName=self.ui.lineEditTestName.text().strip() + 'TestData'
         inputPara = self.ui.lineEditInputPara.text().strip()
         inputPara = inputPara.split(',')    # if string contains ',' may cause error

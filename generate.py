@@ -17,6 +17,7 @@ class ClassContent(object):
         self.level = 0
         self.className = ''
         self.functionName = ''
+        self.caseName = ''
         self.parser = None
         self.sourceFile = ''
         self.FTindex = ''
@@ -310,7 +311,7 @@ class ClassContent(object):
             return 'null'
 
 
-    def generateTestCaseCpp(self, update = False):
+    def generateTestCaseCpp(self, update = False, addCase = False):
         file = os.path.join(self.codePath, self.sourceFile[:-2] + '_test_case.cpp')
         if self.parser.namespace:
             indent = 3
@@ -328,16 +329,38 @@ class ClassContent(object):
         else:
             with open(file) as fopen:
                 lines = fopen.readlines()
-        newLines = []
-        newLines.append(' ' * indent + 'TEST_F(' + self.className + 'FT, ' + self.className + 'Test_' + self.functionName + '_' + self.TestName[:-8] + ')\n')
-        newLines.append(' ' * indent + '{\n')
-        indent += 3
-        newLines.append(' ' * indent + 'std::string testName = ::testing::UnitTest::GetInstance()->current_test_info()->name();\n')
-        newLines.append(' ' * indent + 'EXPECT_EQ(m_test->' + self.functionName + 'Test(' + self.className + '_' + self.functionName + '_' + self.TestName[:-8] + ', testName), 0);\n')
-        indent -= 3
-        newLines.append(' ' * indent + '}\n')
+        if addCase:
+            for idx, line in enumerate(lines):
+                if line.find('TEST_F(' + self.className + 'FT, ' + self.className + 'Test_' + self.functionName) >= 0:
+                    idx += 2
+                    while idx < len(lines):
+                        if lines[idx].find('}') >= 1:
+                            insertIdx = idx
+                            break
+                        idx += 1
+                    newLines = [' ' * (indent + 6) + self.className + '_' + self.functionName + '_' + self.caseName + ',\n']
+        else:
+            newLines = []
+            newLines.append(' ' * indent + 'TEST_F(' + self.className + 'FT, ' + self.className + 'Test_' + self.functionName + '_' + self.caseName + ')\n')
+            newLines.append(' ' * indent + '{\n')
+            indent += 3
+            newLines.append(' ' * indent + 'const int testMap[] = {\n')
+            indent += 3
+            newLines.append(' ' * indent + self.className + '_' + self.functionName + '_' + self.caseName + ',\n')
+            indent -= 3
+            newLines.append(' ' * indent + '};\n')
+            newLines.append(' ' * indent + 'std::string testName = ::testing::UnitTest::GetInstance()->current_test_info()->name();\n')
+            newLines.append(' ' * indent + 'for (auto i = 0; i < sizeof(testMap) / sizeof(int); i++)\n')
+            newLines.append(' ' * indent + '{\n')
+            indent += 3
+            newLines.append(' ' * indent + 'EXPECT_EQ(m_test->' + self.functionName + 'Test(testMap[i], testName), 0);\n')
+            indent -= 3
+            newLines.append(' ' * indent + '}\n')
+            indent -= 3
+            newLines.append(' ' * indent + '}\n')
+            insertIdx = -1
         
-        lines = lines[:-1] + newLines + lines[-1:]
+        lines = lines[:insertIdx] + newLines + lines[insertIdx:]
         with open(file,'w') as fout:
             fout.writelines(lines)
         print('generate ', file)
