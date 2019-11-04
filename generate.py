@@ -319,7 +319,7 @@ class ClassContent(object):
         if not update:
             lines = []
             lines.append('#include "' + self.sourceFile[:-2] + '_test_case.h"\n')
-            resourcePath = '..\\..\\windows\\test\\' + self.tag + '\\test_data\\resource.h'
+            resourcePath = 'resource.h'
             lines.append('#include "' + resourcePath + '"\n')
             if self.parser.namespace:
                 lines.append('namespace ' + self.parser.namespace +'\n')
@@ -503,8 +503,25 @@ class ClassContent(object):
         with open(file,'w') as fout:
             fout.writelines(lines)
         print('generate ', file)
+    
+    def checkCMake(self):
+        path = self.workspace[:self.workspace.rfind('\\')]
+        file = os.path.join(path, 'ult_srcs.cmake')
+        with open(file, 'r') as fopen:
+            lines = fopen.readlines()
+        insertIndex = 0
+        line = 'PRIVATE ${CMAKE_CURRENT_LIST_DIR}/test_data'
+        for idx, line in enumerate(lines):
+            if line.find(line) >= 0:
+                return
+            if line.find('PRIVATE ${') >= 0:
+                insertIndex = idx
+        lines.insert(insertIndex + 1, '        ' + line + '\n')
+        with open(file, 'w') as fopen:
+            fopen.writelines(lines)
 
     def generateResourceH(self):
+        self.checkCMake()
         file = os.path.join(self.workspace, 'resource.h')
         resource = self.className + '_' + self.functionName + '_' + self.TestName[:-8]
         insertLine = '#define ' + resource + ' ' * max(1, 47-len(resource))
