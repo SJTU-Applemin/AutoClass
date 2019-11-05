@@ -281,55 +281,52 @@ class MainWindow(QMainWindow):
         return True
 
 
+    def generatePara(self, line, type):
+        paras = line.strip().split(',')
+        vectorPara = None
+        for para in paras:
+            if not para.strip():
+                continue
+            if vectorPara:
+                vectorPara += ',' + para
+                if para.find('}') >= 0:
+                    para = vectorPara[:]
+                    vectorPara = None
+                else:
+                    continue
+            elif para.find('vector') >= 0 and para.find('}') < 0:
+                vectorPara = para[:]
+                continue
+            value = para[para.find('=') + 1 :].strip()
+            if type == 'input':
+                self.Content.inputValue.append(value)
+            else:
+                self.Content.outputValue.append(value)
+            definition = para[:para.find('=')].strip()
+            if type == 'input':
+                self.Content.inputPara.append(definition)
+            else:
+                self.Content.outputPara.append(definition)
+            definition = self.skipDescripter(definition)
+            definition = self.skipQualifier(definition)
+            format = definition.split(' ')[0].strip('*').strip('&')
+            if type == 'input':
+                self.Content.inputType.append(format)
+            else:
+                self.Content.outputType.append(format)
+            name = definition.split(' ')[-1].strip('*').strip('&')
+            if type == 'input':
+                self.Content.inputName.append(name)
+            else:
+                self.Content.outputName.append(name)
 
 
     def readInfoFromUi(self):
         self.Content.caseName = self.ui.lineEditTestName.text().strip()
         self.Content.TestName=self.ui.lineEditTestName.text().strip() + 'TestData'
-        inputPara = self.ui.lineEditInputPara.text().strip()
-        inputPara = inputPara.split(',')    # if string contains ',' may cause error
-        for input in inputPara:
-            if not input.strip():
-                continue
-            input = input.split('=')    # if string contains '=', may cause error
-            if len(input) == 2:
-                value = input[1].strip()
-            else:
-                value = None
-            self.Content.inputValue.append(value)
-            input = input[0].strip()
-            self.Content.inputPara.append(input)
-            input = self.skipDescripter(input)
-            input = self.skipQualifier(input)
-            format = input.split(' ')[0].strip('*').strip('&')
-            self.Content.inputType.append(format)
-            name = input.split(' ')[-1].strip('*').strip('&')
-            self.Content.inputName.append(name)
-            #if format in self.int_type:
-            #    self.Content.inputType.append('int_type')
-            #elif format == 'bool':
-            #    self.Content.inputType.append('bool')
-            #elif format in self.float_type:
-            #    self.Content.inputType.append('float')
-            #elif format in self.char_type:
-            #    self.Content.inputType.append('char')
-            #else:
-            #    self.Content.inputType.append('selfDefined')
-            #self.Content.inputType.append()
+        self.generatePara(self.ui.lineEditInputPara.text(), 'input')
+        self.generatePara(self.ui.lineEditOutputPara.text(), 'output')
 
-        outputPara = self.ui.lineEditOutputPara.text().strip()
-        outputPara = outputPara.split(',')
-        for output in outputPara:
-            output = output.strip(' ')
-            if not output:
-                continue
-            self.Content.outputPara.append(output)
-            output = self.skipDescripter(output)
-            output = self.skipQualifier(output)
-            format = output.split(' ')[0].strip('*').strip('&')
-            self.Content.outputType.append(format)
-            self.Content.outputName.append(output.split(' ')[-1].strip('*').strip('&'))
-            #self.Content.outputType.append()
 
     def generateClass(self):
         pass
@@ -359,27 +356,33 @@ class MainWindow(QMainWindow):
                     return False
             return True
 
-
     def checkMainPageInput(self):
+        return self.checkPara(self.ui.lineEditInputPara.text()) and self.checkPara(self.ui.lineEditOutputPara.text())
+
+    def checkPara(self, inputPara):
         msgBox = QMessageBox()
         if not self.ui.lineEditTestName.text().strip():
             msgBox.setText("Please input a valid Test Name!")
             msgBox.exec_()
             return False
 
-        inputPara = self.ui.lineEditInputPara.text().strip()
+        inputPara = inputPara.strip()
         inputPara = inputPara.split(',')
+        vectorPara = None
         for input in inputPara:
             if not input:
                 continue
             input = input.strip()
-
-            #if input.startswith('const'):
-            #    input = input[len('const'):].strip()
-            #if input.startswith('volatile'):
-            #    input = input[len('volatile'):].strip()
-            #if input.startswith('restrict'):
-            #    input = input[len('restrict'):].strip()
+            if vectorPara:
+                vectorPara += ',' + input
+                if input.find('}') >= 0:
+                    input = vectorPara[:]
+                    vectorPara = None
+                else:
+                    continue
+            elif input.find('vector') >= 0 and input.find('}') < 0:
+                vectorPara = input[:]
+                continue
             input = self.skipDescripter(input)
             input = self.skipQualifier(input)
             if input.find('=') >= 0:
@@ -389,27 +392,7 @@ class MainWindow(QMainWindow):
             input = input.strip().split(' ')
             para = input[-1]
             if not self.isValidPara(para):
-                msgBox.setText("Please input valid Input Para!\n e.g. \" int num = 2, char ch = 'a' \"")
-                msgBox.exec_()
-                return False
-        outputPara = self.ui.lineEditOutputPara.text().strip()
-        outputPara = outputPara.split(',')
-        for output in outputPara:
-            if not output:
-                continue
-            output = output.strip()
-            #if output.startswith('const'):
-            #    output = output[len('const'):].strip()
-            #if output.startswith('volatile'):
-            #    output = output[len('volatile'):].strip()
-            #if output.startswith('restrict'):
-            #    output = output[len('restrict'):].strip()
-            output = self.skipDescripter(output)
-            output = self.skipQualifier(output)
-            output = output.strip().split(' ')
-            para = output[-1]
-            if not self.isValidPara(para):
-                msgBox.setText("Please input valid Output Para!\n e.g \" int num, char ch\".")
+                msgBox.setText("Please input valid Para!\n e.g. \" int num = 2, char ch = 'a' \"")
                 msgBox.exec_()
                 return False
         return True
@@ -426,27 +409,7 @@ class MainWindow(QMainWindow):
             if Edit.startswith(q):
                 Edit = Edit[len(q):].strip()
         return Edit
-        #if Edit.startswith('const'):
-        #    Edit = Edit[len('const'):].strip()
-        #if Edit.startswith('volatile'):
-        #    Edit = Edit[len('volatile'):].strip()
-        #if Edit.startswith('restrict'):
-        #    Edit = Edit[len('restrict'):].strip()
 
-    #def parseType(self,format):
-    #    if format in self.int_type:
-    #        return 'int'
-    #    elif format in self.float_type:
-    #        return 'float'
-    #    elif format in self.char_type:
-    #        return 'char'
-    #    elif format == 'bool':
-    #        return 'bool'
-    #    else:
-    #        for item in self.container:
-    #            if item in format:
-    #                return 'container'
-    #    return 'selfDefined'
 
 
 
@@ -457,18 +420,6 @@ class MainWindow(QMainWindow):
         text = self.ui.lineEditTestName.text().strip()
         if not text:
             return
-        # pure white space should not be detected as input
-        #if not text:
-        #    return
-        ## test name should only contain _, number, letter
-        #words = text.split('_')
-        #for word in words:
-        #    # ignore \n
-        #    if not word:
-        #        continue
-        #    elif word.isalpha() or word.isalnum():
-        #        continuef
-        #    else:
         if not self.isValidPara(text):
             msgBox = QMessageBox()
             msgBox.setText("Test Name contains invalid character!")

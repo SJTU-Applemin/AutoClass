@@ -10,6 +10,8 @@ class ClassContent(object):
         self.inputType = []
         self.inputValue = []
         self.outputType = []
+        self.outputValue = []
+        self.outputName = []
         self.file_header = os.getcwd() + '\\' + 'sample_header.txt'
         self.workspace = ''
         self.includes = ['vp_reder_sfc_base.h', 'pipeline.h']
@@ -22,7 +24,6 @@ class ClassContent(object):
         self.sourceFile = ''
         self.FTindex = ''
         self.returnValue = ''
-        self.outputName = []
         self.tag = ''
 
     def clear(self):
@@ -34,6 +35,7 @@ class ClassContent(object):
         self.outputPara = []
         self.outputName = []
         self.outputType = []
+        self.outputValue = []
 
     def generateCmake(self, type, path, source = ''):
         file = os.path.join(path, 'ult_srcs.cmake')
@@ -230,7 +232,15 @@ class ClassContent(object):
         insertLines.append(' ' * indent + '{\n')
         indent += 3
         for index, item in enumerate(self.inputName):
-            insertLines.append(' ' * indent + 'inputParameters.' + item + ' = ' + self.getCastType(self.inputType[index]) + 'm_readTestData->GetInputParams("Input", "' + item + '", ' + self.getParaValue(self.inputType[index]) + ');\n')
+            if self.inputType[index].find('vector') >= 0:
+                insertLines.append(' ' * indent + 'for (uint32_t i = 0; i < m_readTestData->GetInputParams("Input", "' + item + '_count", 0); i++)\n')
+                insertLines.append(' ' * indent + '{\n')
+                indent += 3
+                insertLines.append(' ' * indent + 'inputParameters.' + item + '.push_back(m_readTestData->GetInputParams("Input", "' + item + '_"+std::to_string(i), "")); \n')
+                indent -= 3
+                insertLines.append(' ' * indent + '}\n')
+            else:
+                insertLines.append(' ' * indent + 'inputParameters.' + item + ' = ' + self.getCastType(self.inputType[index]) + 'm_readTestData->GetInputParams("Input", "' + item + '", ' + self.getParaValue(self.inputType[index]) + ');\n')
         indent -= 3
         insertLines.append(' ' * indent + '}\n')
         insertLines.append('\n')
@@ -239,7 +249,15 @@ class ClassContent(object):
         indent += 3
         insertLines.append(' ' * indent + 'm_returnValue = m_readTestData->GetInputParams("ReturnValue", "returnValue", 0);\n')
         for index, item in enumerate(self.outputName):
-            insertLines.append(' ' * indent + 'outputParameters.' + item + ' = ' + self.getCastType(self.outputType[index]) + 'm_readTestData->GetInputParams("Output", "' + item + '", ' + self.getParaValue(self.outputType[index]) + ');\n')
+            if self.outputType[index].find('vector') >= 0:
+                insertLines.append(' ' * indent + 'for (uint32_t i = 0; i < m_readTestData->GetInputParams("Output", "' + item + '_count", 0); i++)\n')
+                insertLines.append(' ' * indent + '{\n')
+                indent += 3
+                insertLines.append(' ' * indent + 'outputParameters.' + item + '.push_back(m_readTestData->GetInputParams("Output", "' + item + '_"+std::to_string(i), "")); \n')
+                indent -= 3
+                insertLines.append(' ' * indent + '}\n')
+            else:
+                insertLines.append(' ' * indent + 'outputParameters.' + item + ' = ' + self.getCastType(self.outputType[index]) + 'm_readTestData->GetInputParams("Output", "' + item + '", ' + self.getParaValue(self.outputType[index]) + ');\n')
         indent -= 3
         insertLines.append(' ' * indent + '}\n')
         indent -= 3
@@ -261,26 +279,38 @@ class ClassContent(object):
             return '0'
         return s
 
+    def generateVector(self, name, value):
+        value = value.strip().strip('}').strip('{').strip()
+        value = value.split(',')
+        value_list = []
+        for v in value:
+            if v:
+                value_list.append(v)
+        lines = []
+        lines.append(name + '_count = ' + str(len(value_list)) + '\n')
+        for idx, value in enumerate(value_list):
+            lines.append(name + '_' + str(idx + 1) + ' = ' + self.changeBool(value) + '\n')
+        return lines
+
+
     def generateDat(self):
         lines = []
         lines.append('<Input>\n')
         for index in range(len(self.inputName)):
-            if self.inputValue[index]:
-                lines.append(self.inputName[index] + ' = ' + self.changeBool(self.inputValue[index]) + '\n')
+            if self.inputType[index].find('vector') >= 0:
+                lines.extend(self.generateVector(self.inputName[index], self.inputValue[index]))
             else:
-                lines.append(self.inputName[index] + ' = None\n')
+                lines.append(self.inputName[index] + ' = ' + self.changeBool(self.inputValue[index]) + '\n')
         lines.append('\n')
         lines.append('<ReturnValue>\n')
         lines.append('returnValue = ' + self.returnValue + '\n')
         lines.append('\n')
         lines.append('<Output>\n')
-        for i, output in enumerate(self.outputPara):
-                if '*' in output:
-                    value = 'nullptr'
-                else:
-                    value =  self.getParaValue(self.outputType[i])
-                para = output.split(' ')[-1].strip('*').strip('&')
-                lines.append(para + ' = ' + self.changeBool(value) + '\n')
+        for index in range(len(self.outputName)):
+            if self.outputType[index].find('vector') >= 0:
+                lines.extend(self.generateVector(self.outputName[index], self.outputValue[index]))
+            else:
+                lines.append(self.outputName[index] + ' = ' + self.changeBool(self.outputValue[index]) + '\n')
         path = self.workspace + '\\focus_test\\' + self.className + '\\'
         if not os.path.exists(path):
             os.makedirs(path)
