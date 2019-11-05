@@ -341,7 +341,7 @@ class ClassContent(object):
                     newLines = [' ' * (indent + 6) + self.className + '_' + self.functionName + '_' + self.caseName + ',\n']
         else:
             newLines = []
-            newLines.append(' ' * indent + 'TEST_F(' + self.className + 'FT, ' + self.className + 'Test_' + self.functionName + '_' + self.caseName + ')\n')
+            newLines.append(' ' * indent + 'TEST_F(' + self.className + 'FT, ' + self.className + 'Test_' + self.functionName + ')\n')
             newLines.append(' ' * indent + '{\n')
             indent += 3
             newLines.append(' ' * indent + 'const int testMap[] = {\n')
