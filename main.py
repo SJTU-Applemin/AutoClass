@@ -186,12 +186,12 @@ class MainWindow(QMainWindow):
         existFile, existClass, existFunction, existCase = self.checkTestExist()
         if existCase:   # same case exists, update input paras   
             self.Content.generateTestDataH(update = True)
-            self.Content.generateDat()
+            self.Content.generateDat(update = True, append = False)
             self.ui.textBrowser.setPlainText('Successfully update new case!')
         elif existFunction:   # same test with different case name, update input values
             if self.sameInputParas():
                 self.Content.generateTestCaseCpp(update = True, addCase = True)
-                self.Content.generateDat()
+                self.Content.generateDat(update = True, append = True)
                 self.Content.generateResourceH()
                 self.Content.generateMediaDriverCodecUlt()
                 self.ui.textBrowser.setPlainText('Successfully generate new case!')
@@ -203,7 +203,7 @@ class MainWindow(QMainWindow):
                 return
         elif existClass:
             self.Content.generateTestDataH(True)
-            self.Content.generateDat()
+            self.Content.generateDat(update = False)
             self.Content.generateTestCaseCpp(True)
             self.Content.generateTestH(update = True, sameClass = True)
             self.Content.generateTestCpp(True)
@@ -212,7 +212,7 @@ class MainWindow(QMainWindow):
             self.ui.textBrowser.setPlainText('Successfully generate new case!')
         else:
             self.Content.generateTestDataH(existFile)
-            self.Content.generateDat()
+            self.Content.generateDat(update = False)
             self.Content.generateTestCaseCpp(existFile)
             self.Content.generateTestCaseH(existFile)
             self.Content.generateTestH(update = existFile)
@@ -227,20 +227,23 @@ class MainWindow(QMainWindow):
             return False, False, False, False   # no such test exists
         with open(testDataFile, 'r') as fopen:
             lines = fopen.readlines()
-        className = self.Content.className + 'Test_'
-        function = self.Content.className + 'Test_' + self.Content.functionName
-        case = self.Content.className + 'Test_' + self.Content.functionName + '_' + self.Content.TestName[:-8]
-        sameFunction = False
-        sameClass = False
-        for line in lines:
-            if line.find(case) >= 0:    # exist same class, function, caseName
-                return True, True, True, True
-            elif line.find(function) >= 0:  # exist same class function with different caseName
+        sameClass, sameFunction = False, False
+        for idx, line in enumerate(lines):
+            if line.find('TEST_F(' + self.Content.className) >= 0:
+                sameClass = True
+            if line.find(self.Content.className + 'Test_' + self.Content.functionName) >= 0:
                 sameFunction = True
-                sameClass = True
-            elif line.find(className) >= 0:
-                sameClass = True
-        return True, sameClass, sameFunction, False  # no such class, function exists
+                caseIndex = idx + 3
+                break
+        if not sameFunction:
+            return True, sameClass, sameFunction, False
+        for i in range(caseIndex, len(lines)):
+            if lines[i].find('};') >= 0:
+                return True, True, True, False
+            if lines[i].find(self.Content.caseName) >= 0:
+                return True, True, True, True
+        return True, True, True, False
+
         
 
     def sameInputParas(self):

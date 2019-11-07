@@ -182,7 +182,7 @@ class ClassContent(object):
                 lines.append('namespace ' + self.parser.namespace + '\n')
                 lines.append('{\n')
             if self.parser.namespace:
-                lines.append('}  // namespace encode\n')
+                lines.append('}\n')
             lines.append('#endif\n')
         else:
             with open(file,'r') as fout:
@@ -228,36 +228,36 @@ class ClassContent(object):
         indent -= 3
         insertLines.append(' ' * indent + '} outputParameters;\n')
         insertLines.append('\n')
-        insertLines.append(' ' * indent + 'void SetInput()\n')
+        insertLines.append(' ' * indent + 'void SetInput(std::string &caseName)\n')
         insertLines.append(' ' * indent + '{\n')
         indent += 3
         for index, item in enumerate(self.inputName):
             if self.inputType[index].find('vector') >= 0:
-                insertLines.append(' ' * indent + 'for (uint32_t i = 0; i < m_readTestData->GetInputParams("Input", "' + item + '_count", 0); i++)\n')
+                insertLines.append(' ' * indent + 'for (uint32_t i = 0; i < m_readTestData->GetInputParams(caseName, "' + item + '_count", 0); i++)\n')
                 insertLines.append(' ' * indent + '{\n')
                 indent += 3
-                insertLines.append(' ' * indent + 'inputParameters.' + item + '.push_back(m_readTestData->GetInputParams("Input", "' + item + '_"+std::to_string(i), "")); \n')
+                insertLines.append(' ' * indent + 'inputParameters.' + item + '.push_back(m_readTestData->GetInputParams(caseName, "' + item + '_"+std::to_string(i), "")); \n')
                 indent -= 3
                 insertLines.append(' ' * indent + '}\n')
             else:
-                insertLines.append(' ' * indent + 'inputParameters.' + item + ' = ' + self.getCastType(self.inputType[index]) + 'm_readTestData->GetInputParams("Input", "' + item + '", ' + self.getParaValue(self.inputType[index]) + ');\n')
+                insertLines.append(' ' * indent + 'inputParameters.' + item + ' = ' + self.getCastType(self.inputType[index]) + 'm_readTestData->GetInputParams(caseName, "' + item + '", ' + self.getParaValue(self.inputType[index]) + ');\n')
         indent -= 3
         insertLines.append(' ' * indent + '}\n')
         insertLines.append('\n')
-        insertLines.append(' ' * indent + 'void SetOutputReference()\n')
+        insertLines.append(' ' * indent + 'void SetOutputReference(std::string &caseName)\n')
         insertLines.append(' ' * indent + '{\n')
         indent += 3
-        insertLines.append(' ' * indent + 'm_returnValue = m_readTestData->GetInputParams("ReturnValue", "returnValue", 0);\n')
+        insertLines.append(' ' * indent + 'm_returnValue = m_readTestData->GetInputParams(caseName, "returnValue", 0);\n')
         for index, item in enumerate(self.outputName):
             if self.outputType[index].find('vector') >= 0:
-                insertLines.append(' ' * indent + 'for (uint32_t i = 0; i < m_readTestData->GetInputParams("Output", "' + item + '_count", 0); i++)\n')
+                insertLines.append(' ' * indent + 'for (uint32_t i = 0; i < m_readTestData->GetInputParams(caseName, "' + item + '_count", 0); i++)\n')
                 insertLines.append(' ' * indent + '{\n')
                 indent += 3
-                insertLines.append(' ' * indent + 'outputParameters.' + item + '.push_back(m_readTestData->GetInputParams("Output", "' + item + '_"+std::to_string(i), "")); \n')
+                insertLines.append(' ' * indent + 'outputParameters.' + item + '.push_back(m_readTestData->GetInputParams(caseName, "' + item + '_"+std::to_string(i), "")); \n')
                 indent -= 3
                 insertLines.append(' ' * indent + '}\n')
             else:
-                insertLines.append(' ' * indent + 'outputParameters.' + item + ' = ' + self.getCastType(self.outputType[index]) + 'm_readTestData->GetInputParams("Output", "' + item + '", ' + self.getParaValue(self.outputType[index]) + ');\n')
+                insertLines.append(' ' * indent + 'outputParameters.' + item + ' = ' + self.getCastType(self.outputType[index]) + 'm_readTestData->GetInputParams(caseName, "' + item + '", ' + self.getParaValue(self.outputType[index]) + ');\n')
         indent -= 3
         insertLines.append(' ' * indent + '}\n')
         indent -= 3
@@ -293,28 +293,50 @@ class ClassContent(object):
         return lines
 
 
-    def generateDat(self):
-        lines = []
-        lines.append('<Input>\n')
+    def generateDat(self, update = False, append = True):
+        path = self.workspace + '\\focus_test\\' + self.className + '\\'
+        if not os.path.exists(path):
+            os.makedirs(path)
+        file = os.path.join(path, self.className + '_' + self.functionName + '.dat')
+        if update:
+            with open(file, 'r') as fopen:
+                lines = fopen.readlines()
+        else:
+            lines = []
+        if update and not append:
+            deleteHead, deleteTail = -1, -1
+            for idx, line in enumerate(lines):
+                if line.find('<' + self.caseName + '>') >= 0:
+                    deleteHead = idx
+                    break
+            for idx in range(deleteHead + 1, len(lines)):
+                if lines[idx].find('<') >= 0:
+                    deleteTail = idx
+                    break
+            if deleteTail > 0:
+                lines = lines[:deleteHead] + lines[deleteTail:]
+            else:
+                liens = lines[:deleteHead]
+
+        if lines and lines[-1].strip():
+            lines.append('\n')
+        lines.append('<' + self.caseName + '>\n')
+        lines.append('#Input\n')
         for index in range(len(self.inputName)):
             if self.inputType[index].find('vector') >= 0:
                 lines.extend(self.generateVector(self.inputName[index], self.inputValue[index]))
             else:
                 lines.append(self.inputName[index] + ' = ' + self.changeBool(self.inputValue[index]) + '\n')
         lines.append('\n')
-        lines.append('<ReturnValue>\n')
+        lines.append('#ReturnValue\n')
         lines.append('returnValue = ' + self.returnValue + '\n')
         lines.append('\n')
-        lines.append('<Output>\n')
+        lines.append('#Output\n')
         for index in range(len(self.outputName)):
             if self.outputType[index].find('vector') >= 0:
                 lines.extend(self.generateVector(self.outputName[index], self.outputValue[index]))
             else:
                 lines.append(self.outputName[index] + ' = ' + self.changeBool(self.outputValue[index]) + '\n')
-        path = self.workspace + '\\focus_test\\' + self.className + '\\'
-        if not os.path.exists(path):
-            os.makedirs(path)
-        file = os.path.join(path, self.className + '_' + self.functionName + '_' + self.TestName[:-8] + '.dat')
         with open(file,'w') as fout:
             fout.writelines(lines)
         print('generate ', file)
@@ -368,23 +390,22 @@ class ClassContent(object):
                             insertIdx = idx
                             break
                         idx += 1
-                    newLines = [' ' * (indent + 6) + self.className + '_' + self.functionName + '_' + self.caseName + ',\n']
+                    newLines = [' ' * indent + '    "' + self.caseName + '",\n']
         else:
             newLines = []
             newLines.append(' ' * indent + 'TEST_F(' + self.className + 'FT, ' + self.className + 'Test_' + self.functionName + ')\n')
             newLines.append(' ' * indent + '{\n')
             indent += 3
-            newLines.append(' ' * indent + 'const int testMap[] = {\n')
-            indent += 3
-            newLines.append(' ' * indent + self.className + '_' + self.functionName + '_' + self.caseName + ',\n')
-            indent -= 3
+            newLines.append(' ' * indent + 'std::string testNameMap[] = {\n')
+            newLines.append(' ' * indent + ' "' + self.caseName + '",\n')
             newLines.append(' ' * indent + '};\n')
             newLines.append(' ' * indent + 'std::string testName = ::testing::UnitTest::GetInstance()->current_test_info()->name();\n')
-            newLines.append(' ' * indent + 'for (auto i = 0; i < sizeof(testMap) / sizeof(int); i++)\n')
+            newLines.append(' ' * indent + self.className + '_' + self.functionName + '_TestData testData(' + self.className + '_' + self.functionName + ', testName);\n')
+            newLines.append(' ' * indent + 'for (auto i = 0; i < sizeof(testNameMap) / sizeof(std::string); i++)\n')
             newLines.append(' ' * indent + '{\n')
-            indent += 3
-            newLines.append(' ' * indent + 'EXPECT_EQ(m_test->' + self.functionName + 'Test(testMap[i], testName), 0);\n')
-            indent -= 3
+            newLines.append(' ' * indent + '   testData.SetInput(testNameMap[i]);\n')
+            newLines.append(' ' * indent + '   testData.SetOutputReference(testNameMap[i]);\n')
+            newLines.append(' ' * indent + '   EXPECT_EQ(m_test->' + self.functionName + 'Test(testData), 0);\n')
             newLines.append(' ' * indent + '}\n')
             indent -= 3
             newLines.append(' ' * indent + '}\n')
@@ -478,14 +499,14 @@ class ClassContent(object):
             with open(file, 'r') as fopen:
                 lines = fopen.readlines()
         if sameClass:
-            insertLine = ' ' * (indent + 3) + 'MOS_STATUS ' + self.functionName + 'Test(uint32_t inputRcId, std::string &testName);\n'
+            insertLine = ' ' * (indent + 3) + 'MOS_STATUS ' + self.functionName + 'Test(' + self.className + '_' + self.functionName + '_TestData &testData);\n'
             for idx, line in enumerate(lines):
                 if line.find('class ' + self.className + 'Test : ') >= 0:
                     classIdx = idx
                     break
             for idx in range(classIdx, len(lines)):
                 if lines[idx].strip() == '};':
-                    insertIdx = idx
+                    insertIdx = idx - 1
                     break
             lines.insert(insertIdx, insertLine)
         else:
@@ -511,7 +532,7 @@ class ClassContent(object):
                         insertLines.append(' ,')
                 insertLines.append('){};\n')
             insertLines.append(' ' * indent + 'virtual ~' + self.className + 'Test(){};\n')
-            insertLines.append(' ' * indent + 'MOS_STATUS ' + self.functionName + 'Test(uint32_t inputRcId, std::string &testName);\n')
+            insertLines.append(' ' * indent + 'MOS_STATUS '+ self.functionName + 'Test(' + self.className + '_' + self.functionName + '_TestData &testData);\n')
             indent -= 3
             insertLines.append(' ' * indent + '};\n')
             if self.parser.namespace:
@@ -531,6 +552,11 @@ class ClassContent(object):
         if not update:
             lines = []
             lines.append('#include "' + self.sourceFile[:-2] + '_test.h"\n')
+            lines.append('#include "encode_hevc_vdenc_packet_g12.h"\n')
+            lines.append('#include "encode_huc_brc_init_packet.h"\n')
+            lines.append('#include "encode_huc_brc_update_packet.h"\n')
+            lines.append('#include "encode_pak_integrate_packet.h"\n')
+            lines.append('\n')
             if self.parser.namespace:
                 lines.append('namespace ' + self.parser.namespace + '\n')
                 lines.append('{\n')
@@ -539,13 +565,11 @@ class ClassContent(object):
             with open(file, 'r') as fopen:
                 lines = fopen.readlines()
         insertLines = []
-        insertLines.append(' ' * indent + 'MOS_STATUS ' + self.className + 'Test::' + self.functionName + 'Test(uint32_t inputRcId, std::string &testName)\n')
+        insertLines.append(' ' * indent + 'MOS_STATUS ' + self.className + 'Test::' + self.functionName + 'Test(' + self.className + '_' + self.functionName + '_TestData &testData)\n')
         insertLines.append(' ' * indent + '{\n')
         indent += 3
-        insertLines.append(' ' * indent + self.className + '_' + self.functionName + '_TestData testData(inputRcId, testName);\n')
-        insertLines.append(' ' * indent + 'testData.SetInput();\n')
-        insertLines.append(' ' * indent + 'testData.SetOutputReference();\n')
-        insertLines.append(' ' * indent + '//EXPECT_EQ(' + self.functionName + '(), testData.m_returnValue);\n')
+        insertLines.append(' ' * indent + '//RunTest\n')
+        insertLines.append(' ' * indent + 'EXPECT_EQ(' + self.functionName + '(), testData.m_returnValue);\n')
         insertLines.append(' ' * indent + 'return MOS_STATUS_SUCCESS;\n')
         indent -= 3
         insertLines.append(' ' * indent + '}\n')
@@ -576,7 +600,7 @@ class ClassContent(object):
     def generateResourceH(self):
         self.checkCMake()
         file = os.path.join(self.workspace, 'resource.h')
-        resource = self.className + '_' + self.functionName + '_' + self.TestName[:-8]
+        resource = self.className + '_' + self.functionName
         insertLine = '#define ' + resource + ' ' * max(1, 47-len(resource))
         if os.path.exists(file):
             with open(file, 'r') as fopen:
@@ -601,8 +625,8 @@ class ClassContent(object):
             with open(file, 'w') as fopen:
                 fopen.write('#include "resource.h"\n')
         with open(file, 'a') as fopen:
-            resource = self.className + '_' + self.functionName + '_' + self.TestName[:-8]
-            fopen.write(resource + ' ' * max(1, (45 - len(resource))) + 'TEST_DATA     "focus_test/' + self.className + '/' + self.className + '_' + self.functionName + '_' + self.TestName[:-8] + '.dat"\n')
+            resource = self.className + '_' + self.functionName
+            fopen.write(resource + ' ' * max(1, (45 - len(resource))) + 'TEST_DATA     "focus_test/' + self.className + '/' + self.className + '_' + self.functionName + '.dat"\n')
         print('generate ', file)
 
 
