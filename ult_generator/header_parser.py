@@ -26,6 +26,7 @@ class HeaderParser(object):
         self.basic_type = {'int', 'bool', 'dword', 'uint8_t', 'uint16_t', 'uint32_t', 'uint64_t', 'char'}
         self.keywords = {'static', 'constexpr', 'const', 'unsigned', '*', '&'}
         self.vars = []
+        self.enum = []   # [name, [[type,value]],[type,value]]
 
     #def print_info(self):
     #    print('--------------' + self.name + '-----------------')
@@ -152,8 +153,9 @@ class HeaderParser(object):
         f_method = False
         f_struct = False
         className = None
+        f_enum = False
 
-        for line in self.lines:
+        for line_idx, line in enumerate(self.lines):
             line_clr = line.strip()
             if f_ignore:
                 idx = line_clr.find('*/')
@@ -167,8 +169,23 @@ class HeaderParser(object):
                 continue                   # continue may ignore the content and cause some problem
             if line_clr.find('//') != -1:
                 idx = line_clr.find('//')
-                line_clr = line_clr[:idx]
+                line_clr = line_clr[:idx].strip()
             if not line_clr:
+                continue
+            # lines unfinished
+            if line_clr.endswith('\\') and line_idx + 1 < len(self.lines):
+                self.lines[line_idx + 1] = line_clr[:-1] + self.lines[line_idx + 1]
+                continue
+            if line_clr.startswith('typedef enum'):
+                f_enum = True
+                enumName = line_clr.strip('{').strip().split()[-1]
+                self.enum.append([enumName,[]])
+            if f_enum:
+                if line_clr.find('=') >= 0:
+                    defines = line_clr.strip(',').strip().split()
+                    self.enum[-1][1].append([defines[0], defines[-1]])
+                if line_clr.find('}') >= 0:
+                    f_enum = False
                 continue
             if line_clr.startswith('#ifndef') or line_clr.startswith('#define'):
                 continue
@@ -213,7 +230,7 @@ class HeaderParser(object):
             #or has '=':
             #uint32_t x = 256 * sizeof(int32_t)  is not a function
             #void f(s='')  is a function
-            if line_clr.find('(') != -1 and (line_clr.find('=') == -1 or (line_clr.find('=') > line_clr.find('('))):
+            if not line_clr.startswith('#') and line_clr.find('(') != -1 and (line_clr.find('=') == -1 or (line_clr.find('=') > line_clr.find('('))):
                 self.methods.append([line])
                 if not(line_clr[-1] == ';' or line_clr[-1] == '}'):
                     f_method = True

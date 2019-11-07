@@ -35,8 +35,10 @@ class MainWindow(QMainWindow):
         self.int_type = {'int', 'uint8_t','int8_t' , 'uint16_t', 'int16_t', 'uint32_t', 'int32_t', 'uint64_t', 'int64_t'}
         self.float_type = {'float32', 'float64', 'float', 'double'}
         self.container = {'string', 'vector', 'deque', 'list', 'forward_list', 'queue', 'priority_queue', 'stack'}
+        self.returnValueList = []
         
 
+        self.ui.comboBoxReturnValue.setEditable(True)
 
         self.ui.pushButtonGenerate.clicked.connect(self.check_read_generate)
         self.ui.lineEditTestName.textChanged.connect(partial(self.changebg,'TestName'))
@@ -49,6 +51,20 @@ class MainWindow(QMainWindow):
         self.ui.lineEditInputPara.editingFinished.connect(partial(self.fillLine,'InputPara'))
         self.ui.lineEditOutputPara.editingFinished.connect(partial(self.fillLine,'OutputPara'))
         self.ui.lineEditFile.editingFinished.connect(self.readHFile)
+
+
+    def setReturnValueList(self):
+        file = self.mediaPath + 'media\\media_driver\\agnostic\\common\\os\\mos_defs.h'
+        mosParser = read_file.read_h_file(file)
+        comboBoxReturnValue = self.ui.comboBoxReturnValue
+        for group in mosParser.enum:
+            if group[0] == '_MOS_STATUS':
+                self.returnValueList = group[1]
+                break
+        comboBoxReturnValue.clear()
+        for item in self.returnValueList:
+            comboBoxReturnValue.addItem(item[0])
+
 
     @Slot()
     def changebg(self,name,text):
@@ -89,7 +105,7 @@ class MainWindow(QMainWindow):
 
     def readHFile(self):
         self.clearComboboxSelect()
-        fileName = self.ui.lineEditFile.text()
+        fileName = self.ui.lineEditFile.text().strip().replace('/','\\')
         if not fileName.strip():
             return
         if not os.path.exists(fileName):
@@ -102,9 +118,10 @@ class MainWindow(QMainWindow):
         self.parser = read_file.read_h_file(fileName)
         self.Content.parser = self.parser
         self.Content.sourceFile = os.path.basename(fileName)
-        mediaPath = fileName[:fileName.find('media')]
-        self.Content.workspace = os.path.join(fileName[:fileName.find('media')], 'media\\media_embargo\\media_driver_next\\ult\\windows\\codec\\test')
+        self.mediaPath = fileName[:fileName.find('media')]
         self.fillClassSelect()
+        self.setReturnValueList()
+        
 
     @Slot()
     def fillLine(self, name, flag = True):
@@ -132,76 +149,187 @@ class MainWindow(QMainWindow):
             self.ui.lineEditOutputPara.setStyleSheet('QLineEdit {background-color: rgb(255, 242, 0);}')
             blank.append('OutputPara')
 
+        if not self.ui.comboBoxReturnValue.currentText():
+            self.ui.comboBoxReturnValue.setStyleSheet('QLineEdit {background-color: rgb(255, 242, 0);}')
+            blank.append('ReturnValue')
+        else:
+            returnValue = self.ui.comboBoxReturnValue.currentText().strip()
+            found = False
+            for item in self.returnValueList:
+                if returnValue in item:
+                    found = True
+                    self.Content.returnValue = item[1]
+            if not found:
+                msgBox = QMessageBox()
+                msgBox.setText("Return Value is not valid!")
+                self.ui.comboBoxReturnValue.clearEditText()
+                msgBox.exec_()
+                return
+
         if blank:
-            msgBox = QQMessageBox()
+            msgBox = QMessageBox()
             str = ','.join(blank)
             msgBox.setText("Please fill %s" % str)
             msgBox.exec_()
-        else:
-            self.Content.className = self.ui.comboBoxClass.currentText()
-            self.Content.functionName = self.ui.comboBoxFunction.currentText()
-            self.Content.clear()
-            self.readInfoFromUi()
-            self.Content.generateTestDataH()
-            self.Content.generateInput()
-            self.Content.generateReference()
-            self.Content.generateTestCaseCpp()
-            self.Content.generateTestCaseH()
-            self.Content.generateTestH()
-            self.Content.generateTestCpp()
+            return
+
+        self.Content.className = self.ui.comboBoxClass.currentText()
+        self.Content.functionName = self.ui.comboBoxFunction.currentText()
+        self.Content.clear()
+        self.readInfoFromUi()
+        error = self.Content.getFilePath(self.ui.lineEditFile.text().replace('/', '\\'))
+        if error:
+            msgBox = QMessageBox()
+            msgBox.setText(error)
+            msgBox.exec_()
+            return
+        existFile, existClass, existFunction, existCase = self.checkTestExist()
+        if existCase:   # same case exists, update input paras   
+            self.Content.generateTestDataH(update = True)
+            self.Content.generateDat(update = True, append = False)
+            self.ui.textBrowser.setPlainText('Successfully update new case!')
+        elif existFunction:   # same test with different case name, update input values
+            if self.sameInputParas():
+                self.Content.generateTestCaseCpp(update = True, addCase = True)
+                self.Content.generateDat(update = True, append = True)
+                self.Content.generateResourceH()
+                self.Content.generateMediaDriverCodecUlt()
+                self.ui.textBrowser.setPlainText('Successfully generate new case!')
+            else:
+                msgBox = QMessageBox()
+                str = ','.join(blank)
+                msgBox.setText('Same test case exists with different name and paras, update it First!')
+                msgBox.exec_()
+                return
+        elif existClass:
+            self.Content.generateTestDataH(True)
+            self.Content.generateDat(update = False)
+            self.Content.generateTestCaseCpp(True)
+            self.Content.generateTestH(update = True, sameClass = True)
+            self.Content.generateTestCpp(True)
             self.Content.generateResourceH()
             self.Content.generateMediaDriverCodecUlt()
-            self.Content.generateUltSrcsCmake()
+            self.ui.textBrowser.setPlainText('Successfully generate new case!')
+        else:
+            self.Content.generateTestDataH(existFile)
+            self.Content.generateDat(update = False)
+            self.Content.generateTestCaseCpp(existFile)
+            self.Content.generateTestCaseH(existFile)
+            self.Content.generateTestH(update = existFile)
+            self.Content.generateTestCpp(existFile)
+            self.Content.generateResourceH()
+            self.Content.generateMediaDriverCodecUlt()
+            self.ui.textBrowser.setPlainText('Successfully generate new case!')
+
+    def checkTestExist(self):
+        testDataFile = os.path.join(self.Content.codePath, self.Content.sourceFile[:-2] + '_test_case.cpp')
+        if not os.path.exists(testDataFile):
+            return False, False, False, False   # no such test exists
+        with open(testDataFile, 'r') as fopen:
+            lines = fopen.readlines()
+        sameClass, sameFunction = False, False
+        for idx, line in enumerate(lines):
+            if line.find('TEST_F(' + self.Content.className) >= 0:
+                sameClass = True
+            if line.find(self.Content.className + 'Test_' + self.Content.functionName) >= 0:
+                sameFunction = True
+                caseIndex = idx + 3
+                break
+        if not sameFunction:
+            return True, sameClass, sameFunction, False
+        for i in range(caseIndex, len(lines)):
+            if lines[i].find('};') >= 0:
+                return True, True, True, False
+            if lines[i].find(self.Content.caseName) >= 0:
+                return True, True, True, True
+        return True, True, True, False
+
+        
+
+    def sameInputParas(self):
+        testDataFile = os.path.join(self.Content.codePath, self.Content.sourceFile[:-2] + '_test_data.h')
+        with open(testDataFile, 'r') as fopen:
+            lines = fopen.readlines()
+        for line_idx, line in enumerate(lines):
+            if line.strip().startswith('struct _inputParameters'):
+                index = line_idx + 2
+                break
+        inputPara = []
+        while lines[index].find('}') < 0:
+            line = lines[index].strip().strip(';')
+            paras = line.split()
+            inputPara.append([paras[0], paras[-1]])
+            index += 1
+        if len(inputPara) != len(self.Content.inputPara):
+            return False
+        for i in range(len(inputPara)):
+            if inputPara[i][0] != self.Content.inputType[i] or inputPara[i][1] != self.Content.inputName[i]:
+                return False
+
+        for line_idx in range(index, len(lines)):
+            if lines[line_idx].find('struct _outputParameters') >= 0:
+                index = line_idx + 2
+                break
+        outputPara = []
+        while lines[index].find('}') < 0:
+            line = lines[index].strip().strip(';')
+            paras = line.split()
+            outputPara.append([paras[0], paras[-1]])
+            index += 1
+        if len(outputPara) != len(self.Content.outputPara):
+            return False
+        for i in range(len(outputPara)):
+            if outputPara[i][0] != self.Content.outputType[i] or outputPara[i][1] != self.Content.outputName[i]:
+                return False
+        return True
+
+
+    def generatePara(self, line, type):
+        paras = line.strip().split(',')
+        vectorPara = None
+        for para in paras:
+            if not para.strip():
+                continue
+            if vectorPara:
+                vectorPara += ',' + para
+                if para.find('}') >= 0:
+                    para = vectorPara[:]
+                    vectorPara = None
+                else:
+                    continue
+            elif para.find('vector') >= 0 and para.find('}') < 0:
+                vectorPara = para[:]
+                continue
+            value = para[para.find('=') + 1 :].strip()
+            if type == 'input':
+                self.Content.inputValue.append(value)
+            else:
+                self.Content.outputValue.append(value)
+            definition = para[:para.find('=')].strip()
+            if type == 'input':
+                self.Content.inputPara.append(definition)
+            else:
+                self.Content.outputPara.append(definition)
+            definition = self.skipDescripter(definition)
+            definition = self.skipQualifier(definition)
+            format = definition.split(' ')[0].strip('*').strip('&')
+            if type == 'input':
+                self.Content.inputType.append(format)
+            else:
+                self.Content.outputType.append(format)
+            name = definition.split(' ')[-1].strip('*').strip('&')
+            if type == 'input':
+                self.Content.inputName.append(name)
+            else:
+                self.Content.outputName.append(name)
+
 
     def readInfoFromUi(self):
-
+        self.Content.caseName = self.ui.lineEditTestName.text().strip()
         self.Content.TestName=self.ui.lineEditTestName.text().strip() + 'TestData'
+        self.generatePara(self.ui.lineEditInputPara.text(), 'input')
+        self.generatePara(self.ui.lineEditOutputPara.text(), 'output')
 
-        inputPara = self.ui.lineEditInputPara.text().strip()
-        inputPara = inputPara.split(',')    # if string contains ',' may cause error
-        for input in inputPara:
-            if not input.strip():
-                continue
-            input = input.split('=')    # if string contains '=', may cause error
-            if len(input) == 2:
-                value = input[1].strip()
-            else:
-                value = None
-            self.Content.inputValue.append(value)
-            input = input[0].strip()
-            self.Content.inputPara.append(input)
-            input = self.skipDescripter(input)
-            input = self.skipQualifier(input)
-            format = input.split(' ')[0].strip('*').strip('&')
-            self.Content.inputType.append(format)
-
-            name = input.split(' ')[-1].strip('*').strip('&')
-            self.Content.inputName.append(name)
-            #if format in self.int_type:
-            #    self.Content.inputType.append('int_type')
-            #elif format == 'bool':
-            #    self.Content.inputType.append('bool')
-            #elif format in self.float_type:
-            #    self.Content.inputType.append('float')
-            #elif format in self.char_type:
-            #    self.Content.inputType.append('char')
-            #else:
-            #    self.Content.inputType.append('selfDefined')
-            #self.Content.inputType.append()
-
-        outputPara = self.ui.lineEditOutputPara.text().strip()
-        outputPara = outputPara.split(',')
-        for output in outputPara:
-            output = output.strip(' ')
-            if not output:
-                continue
-            self.Content.outputPara.append(output)
-            output = self.skipDescripter(output)
-            output = self.skipQualifier(output)
-            format = output.split(' ')[0].strip('*').strip('&')
-            self.Content.outputType.append(format)
-
-            #self.Content.outputType.append()
 
     def generateClass(self):
         pass
@@ -231,27 +359,33 @@ class MainWindow(QMainWindow):
                     return False
             return True
 
-
     def checkMainPageInput(self):
+        return self.checkPara(self.ui.lineEditInputPara.text()) and self.checkPara(self.ui.lineEditOutputPara.text())
+
+    def checkPara(self, inputPara):
         msgBox = QMessageBox()
         if not self.ui.lineEditTestName.text().strip():
             msgBox.setText("Please input a valid Test Name!")
             msgBox.exec_()
             return False
 
-        inputPara = self.ui.lineEditInputPara.text().strip()
+        inputPara = inputPara.strip()
         inputPara = inputPara.split(',')
+        vectorPara = None
         for input in inputPara:
             if not input:
                 continue
             input = input.strip()
-
-            #if input.startswith('const'):
-            #    input = input[len('const'):].strip()
-            #if input.startswith('volatile'):
-            #    input = input[len('volatile'):].strip()
-            #if input.startswith('restrict'):
-            #    input = input[len('restrict'):].strip()
+            if vectorPara:
+                vectorPara += ',' + input
+                if input.find('}') >= 0:
+                    input = vectorPara[:]
+                    vectorPara = None
+                else:
+                    continue
+            elif input.find('vector') >= 0 and input.find('}') < 0:
+                vectorPara = input[:]
+                continue
             input = self.skipDescripter(input)
             input = self.skipQualifier(input)
             if input.find('=') >= 0:
@@ -261,27 +395,7 @@ class MainWindow(QMainWindow):
             input = input.strip().split(' ')
             para = input[-1]
             if not self.isValidPara(para):
-                msgBox.setText("Please input valid Input Para!\n e.g. \" int num = 2, char ch = 'a' \"")
-                msgBox.exec_()
-                return False
-        outputPara = self.ui.lineEditOutputPara.text().strip()
-        outputPara = outputPara.split(',')
-        for output in outputPara:
-            if not output:
-                continue
-            output = output.strip()
-            #if output.startswith('const'):
-            #    output = output[len('const'):].strip()
-            #if output.startswith('volatile'):
-            #    output = output[len('volatile'):].strip()
-            #if output.startswith('restrict'):
-            #    output = output[len('restrict'):].strip()
-            output = self.skipDescripter(output)
-            output = self.skipQualifier(output)
-            output = output.strip().split(' ')
-            para = output[-1]
-            if not self.isValidPara(para):
-                msgBox.setText("Please input valid Output Para!\n e.g \" int num, char ch\".")
+                msgBox.setText("Please input valid Para!\n e.g. \" int num = 2, char ch = 'a' \"")
                 msgBox.exec_()
                 return False
         return True
@@ -298,27 +412,7 @@ class MainWindow(QMainWindow):
             if Edit.startswith(q):
                 Edit = Edit[len(q):].strip()
         return Edit
-        #if Edit.startswith('const'):
-        #    Edit = Edit[len('const'):].strip()
-        #if Edit.startswith('volatile'):
-        #    Edit = Edit[len('volatile'):].strip()
-        #if Edit.startswith('restrict'):
-        #    Edit = Edit[len('restrict'):].strip()
 
-    #def parseType(self,format):
-    #    if format in self.int_type:
-    #        return 'int'
-    #    elif format in self.float_type:
-    #        return 'float'
-    #    elif format in self.char_type:
-    #        return 'char'
-    #    elif format == 'bool':
-    #        return 'bool'
-    #    else:
-    #        for item in self.container:
-    #            if item in format:
-    #                return 'container'
-    #    return 'selfDefined'
 
 
 
@@ -329,18 +423,6 @@ class MainWindow(QMainWindow):
         text = self.ui.lineEditTestName.text().strip()
         if not text:
             return
-        # pure white space should not be detected as input
-        #if not text:
-        #    return
-        ## test name should only contain _, number, letter
-        #words = text.split('_')
-        #for word in words:
-        #    # ignore \n
-        #    if not word:
-        #        continue
-        #    elif word.isalpha() or word.isalnum():
-        #        continuef
-        #    else:
         if not self.isValidPara(text):
             msgBox = QMessageBox()
             msgBox.setText("Test Name contains invalid character!")
