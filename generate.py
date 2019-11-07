@@ -552,6 +552,9 @@ class ClassContent(object):
         if not update:
             lines = []
             lines.append('#include "' + self.sourceFile[:-2] + '_test.h"\n')
+            lines.append('#include "encode_hevc_brc_mock.h"\n')
+            lines.append('#include "media_scalability_mock.h"\n')
+            lines.append('#include "media_feature_manager_mock.h"\n')
             lines.append('#include "encode_hevc_vdenc_packet_g12.h"\n')
             lines.append('#include "encode_huc_brc_init_packet.h"\n')
             lines.append('#include "encode_huc_brc_update_packet.h"\n')
@@ -569,7 +572,7 @@ class ClassContent(object):
         insertLines.append(' ' * indent + '{\n')
         indent += 3
         insertLines.append(' ' * indent + '//RunTest\n')
-        insertLines.append(' ' * indent + 'EXPECT_EQ(' + self.functionName + '(), testData.m_returnValue);\n')
+        insertLines.append(' ' * indent + '//EXPECT_EQ(' + self.functionName + '(), testData.m_returnValue);\n')
         insertLines.append(' ' * indent + 'return MOS_STATUS_SUCCESS;\n')
         indent -= 3
         insertLines.append(' ' * indent + '}\n')
